@@ -12,6 +12,7 @@ import {
   AlertCircle,
   Zap,
   Layers,
+  Eye,
 } from "lucide-react";
 import {
   Character,
@@ -69,6 +70,7 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
   const [selectedDomainName, setSelectedDomainName] = useState<string>("");
   const [selectedMetamagic, setSelectedMetamagic] = useState<MetamagicFeat[]>([]);
   const [domainFilter, setDomainFilter] = useState<"all" | "primary" | "secondary">("all");
+  const [pickerSearch, setPickerSearch] = useState("");
 
   const isSpontaneous = classDef.castingType.includes("spontaneous");
   const isCleric = activeClass.casterClass === "cleric";
@@ -91,6 +93,9 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
     0,
   );
 
+  // Highest spell level that still fits the slot once metamagic is added.
+  const spellCeiling = (preparingSlotLevel ?? 0) - metamagicLevelAdjustment;
+
   // Domains grant their spells on top of the class list, and most of them are
   // not class spells at all, so they have to be merged into what can be
   // prepared — otherwise they never appear anywhere.
@@ -108,6 +113,38 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
 
   const levelForCharacter = (spell: Spell): number | undefined =>
     effectiveSpellLevel(spell, activeClass, domainGrants);
+
+  // What the preparation picker can currently offer for the open slot.
+  const visiblePickerSpells = knownSpells.filter((spell) => {
+    // A spell only fits a slot of its own level or higher, and metamagic
+    // pushes it further up. Without this a 1st-level slot would offer
+    // 9th-level spells.
+    const baseLvl = levelForCharacter(spell);
+    if (baseLvl === undefined) return false;
+    if (baseLvl + metamagicLevelAdjustment > (preparingSlotLevel ?? 0)) return false;
+
+    const q = pickerSearch.trim().toLowerCase();
+    if (
+      q &&
+      !`${spell.name} ${spell.school} ${spell.shortDescription}`.toLowerCase().includes(q)
+    ) {
+      return false;
+    }
+
+    if (domainFilter === "primary" && primaryDomainObj) {
+      return (
+        primaryDomainObj.grantedSpells[preparingSlotLevel ?? 0]?.toLowerCase() ===
+        spell.name.toLowerCase()
+      );
+    }
+    if (domainFilter === "secondary" && secondaryDomainObj) {
+      return (
+        secondaryDomainObj.grantedSpells[preparingSlotLevel ?? 0]?.toLowerCase() ===
+        spell.name.toLowerCase()
+      );
+    }
+    return true;
+  });
 
   // Helper to check if a spell belongs to primary or secondary domain
   const getSpellDomainTag = (spellName: string, level: number): string | null => {
@@ -160,16 +197,28 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
     setSelectedDomainName("");
     setSelectedMetamagic([]);
     setDomainFilter("all");
+    setPickerSearch("");
   };
 
   // Long Rest / Reset All Spells for new day
-  const handleLongRest = () => {
-    // Reset all prepared spells isCast to false
+  // A new day refreshes expended slots but keeps the prepared list — most
+  // casters re-prepare the same spells, so wiping it every morning is busywork.
+  const handleNewDay = () => {
     const resetPrepared = character.preparedSpells.map((p) => ({ ...p, isCast: false }));
-    // Reset spontaneous used slots to empty
     onUpdateCharacter({
       ...character,
       preparedSpells: resetPrepared,
+      spontaneousSlotsUsed: {},
+    });
+  };
+
+  // Separate, deliberate action for actually starting the list over.
+  const handleClearPrepared = () => {
+    if (character.preparedSpells.length === 0) return;
+    if (!confirm(`Clear all ${character.preparedSpells.length} prepared spells for ${character.name}? Slots stay available so you can prepare a fresh list.`)) return;
+    onUpdateCharacter({
+      ...character,
+      preparedSpells: [],
       spontaneousSlotsUsed: {},
     });
   };
@@ -246,14 +295,33 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={handleLongRest}
-          className="flex items-center gap-2 bg-[#2d241c] hover:bg-[#d4af37] text-[#d4af37] hover:text-[#1a1614] font-serif font-bold text-xs uppercase tracking-widest px-5 py-2.5 rounded-sm border border-[#d4af37] shadow-lg transition"
-        >
-          <Moon className="w-4 h-4" />
-          <span>Long Rest / Re-prepare All Slots</span>
-        </button>
+        <div className="flex flex-wrap items-stretch gap-2 w-full sm:w-auto">
+          <button
+            onClick={handleNewDay}
+            className="flex flex-1 sm:flex-none items-center justify-center gap-2 bg-[#2d241c] hover:bg-[#d4af37] text-[#d4af37] hover:text-[#1a1614] font-serif font-bold text-xs uppercase tracking-widest px-4 sm:px-5 py-2.5 rounded-sm border border-[#d4af37] shadow-lg transition"
+            title="Rest for the night: expended slots refresh and your prepared list stays as it is"
+          >
+            <Moon className="w-4 h-4 shrink-0" />
+            <span>New Day — Refresh Slots</span>
+          </button>
+
+          {!isSpontaneous && character.preparedSpells.length > 0 && (
+            <button
+              onClick={handleClearPrepared}
+              className="flex flex-1 sm:flex-none items-center justify-center gap-2 bg-[#1c1714] hover:bg-[#2d241c] text-[#8c7a65] hover:text-[#d4c5b3] font-serif font-bold text-xs uppercase tracking-widest px-4 py-2.5 rounded-sm border border-[#3d2e24] transition"
+              title="Empty the prepared list so you can build a different one"
+            >
+              <Trash2 className="w-4 h-4 shrink-0" />
+              <span>Clear Prepared</span>
+            </button>
+          )}
+        </div>
       </div>
+
+      <p className="-mt-3 text-[11px] text-[#8c7a65] font-serif italic">
+        A new day refreshes your slots and keeps the same prepared spells — use
+        <strong className="text-[#d4c5b3]"> Clear Prepared</strong> only when you want to build a different list.
+      </p>
 
       {/* Daily Spell Slots Summary Bar across levels */}
       <div className="bg-[#14100e] border border-[#3d2e24] rounded-lg p-5 shadow-xl">
@@ -281,7 +349,11 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
                   {s.level === 0 ? "Cantrips" : `Lvl ${s.level}`}
                 </div>
                 <div className="my-1 text-base font-bold text-[#d4af37] font-mono">
-                  {isAtWill ? "∞" : `${s.total}`}
+                  {/* Spontaneous casters really do have unlimited cantrips.
+                      Prepared casters slot a fixed number of orisons and only
+                      then cast them at will, so "∞" contradicted the count
+                      shown underneath. */}
+                  {isAtWill && isSpontaneous ? "∞" : `${s.total}`}
                 </div>
                 <div className="text-[10px] text-[#8c7a65] font-mono">
                   {isSpontaneous
@@ -688,29 +760,41 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
                   )}
                 </div>
 
+                {/* With a full class list running to four figures, searching is
+                    the only practical way to find a spell on a phone. */}
+                <div className="space-y-1.5">
+                  <input
+                    type="text"
+                    value={pickerSearch}
+                    onChange={(e) => setPickerSearch(e.target.value)}
+                    placeholder="Search by name, school or effect..."
+                    className="w-full bg-[#14100e] border border-[#3d2e24] rounded-sm px-3 py-2 text-sm text-[#d4c5b3] placeholder-[#8c7a65] focus:outline-none focus:border-[#d4af37] font-serif"
+                  />
+                  <p className="text-[10px] text-[#8c7a65] font-serif italic">
+                    {metamagicLevelAdjustment === 0
+                      ? `Showing spells of level ${preparingSlotLevel ?? 0} or lower.`
+                      : spellCeiling < 0
+                        ? `Metamagic +${metamagicLevelAdjustment} needs a level ${metamagicLevelAdjustment + 1} slot or higher — nothing fits a level ${preparingSlotLevel ?? 0} slot.`
+                        : `Metamagic +${metamagicLevelAdjustment}: showing spells of level ${spellCeiling} or lower, which still fit this level ${preparingSlotLevel ?? 0} slot.`}
+                  </p>
+                </div>
+
                 {knownSpells.length === 0 ? (
                   <p className="text-xs text-[#8c7a65] italic p-4 bg-[#14100e] rounded-sm font-serif">
                     Your grimoire is currently empty! Add spells from the Paizo Spell Database first.
                   </p>
                 ) : (
-                  <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
-                    {knownSpells
-                      .filter((spell) => {
-                        // A spell only fits a slot of its own level or higher,
-                        // and metamagic pushes it further up. Without this a
-                        // 1st-level slot would offer 9th-level spells.
-                        const baseLvl = levelForCharacter(spell);
-                        if (baseLvl === undefined) return false;
-                        if (baseLvl + metamagicLevelAdjustment > (preparingSlotLevel ?? 0)) return false;
-
-                        if (domainFilter === "primary" && primaryDomainObj) {
-                          return primaryDomainObj.grantedSpells[preparingSlotLevel ?? 0]?.toLowerCase() === spell.name.toLowerCase();
-                        }
-                        if (domainFilter === "secondary" && secondaryDomainObj) {
-                          return secondaryDomainObj.grantedSpells[preparingSlotLevel ?? 0]?.toLowerCase() === spell.name.toLowerCase();
-                        }
-                        return true;
-                      })
+                  <div className="max-h-[45vh] sm:max-h-72 overflow-y-auto space-y-2 pr-1">
+                    {visiblePickerSpells.length === 0 && (
+                      <p className="text-xs text-[#8c7a65] italic p-4 bg-[#14100e] rounded-sm font-serif">
+                        {spellCeiling < 0
+                          ? `No spell can absorb +${metamagicLevelAdjustment} levels of metamagic in a level ${preparingSlotLevel ?? 0} slot. Drop a feat or use a higher slot.`
+                          : pickerSearch.trim()
+                            ? `Nothing matches "${pickerSearch.trim()}" at level ${spellCeiling} or lower.`
+                            : "No spells available for this slot yet."}
+                      </p>
+                    )}
+                    {visiblePickerSpells
                       .map((spell) => {
                         const baseLvl = levelForCharacter(spell) ?? 0;
                         const domainTag = getSpellDomainTag(spell.name, preparingSlotLevel ?? 0);
@@ -718,12 +802,11 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
                         return (
                           <div
                             key={spell.id}
-                            onClick={() => handleConfirmPrepare(spell)}
-                            className="bg-[#14100e] border border-[#3d2e24] hover:border-[#d4af37] rounded-sm p-3 flex items-center justify-between cursor-pointer transition group"
+                            className="bg-[#14100e] border border-[#3d2e24] hover:border-[#d4af37] rounded-sm p-3 flex items-start justify-between gap-2 transition group"
                           >
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-serif font-bold text-sm text-[#e2d5c3] group-hover:text-[#d4af37]">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <h4 className="font-serif font-bold text-sm text-[#e2d5c3]">
                                   {spell.name}
                                 </h4>
                                 {domainTag && (
@@ -735,11 +818,37 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
                               <p className="text-xs text-[#8c7a65] font-serif italic mt-0.5">
                                 Base Level: {baseLvl} • {spell.school} • {spell.range}
                               </p>
+                              {/* The summary makes the choice readable without
+                                  leaving the picker; the eye opens full rules. */}
+                              <p className="text-[11px] text-[#8c7a65] font-serif mt-1 leading-snug">
+                                {spell.shortDescription}
+                              </p>
+                              <p className="text-[10px] text-[#6b5c4c] font-mono mt-1">
+                                {spell.castingTime} • {spell.components.join(", ")} • {spell.duration}
+                                {spell.savingThrow && spell.savingThrow !== "None"
+                                  ? ` • Save: ${spell.savingThrow}`
+                                  : ""}
+                              </p>
                             </div>
 
-                            <button className="bg-[#2d241c] group-hover:bg-[#d4af37] text-[#d4af37] group-hover:text-[#1a1614] border border-[#d4af37] px-3 py-1 rounded-sm text-xs font-bold uppercase tracking-wider transition">
-                              Select
-                            </button>
+                            <div className="flex flex-col items-stretch gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => onOpenSpellDetails(spell)}
+                                title={`Read the full rules text for ${spell.name}`}
+                                className="flex items-center justify-center gap-1 bg-[#1c1714] hover:bg-[#2d241c] text-[#8c7a65] hover:text-[#d4af37] border border-[#3d2e24] hover:border-[#d4af37]/60 px-3 py-1.5 rounded-sm text-[11px] font-bold uppercase tracking-wider transition"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>Read</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleConfirmPrepare(spell)}
+                                className="bg-[#2d241c] hover:bg-[#d4af37] text-[#d4af37] hover:text-[#1a1614] border border-[#d4af37] px-3 py-1.5 rounded-sm text-[11px] font-bold uppercase tracking-wider transition"
+                              >
+                                Select
+                              </button>
+                            </div>
                           </div>
                         );
                       })}
