@@ -13,6 +13,10 @@ const done = existsSync(`${DIR}/details.json`)
 
 const decode = (s) =>
   s
+    // Drop script/style bodies first: stripping only the tags would leave the
+    // JavaScript behind as visible text in the middle of a spell description.
+    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&#39;|&rsquo;/g, "'")
@@ -59,8 +63,14 @@ function parseSpell(html, fallbackName) {
   const dIdx = text.indexOf(" Description ");
   if (dIdx >= 0) {
     description = text.slice(dIdx + " Description ".length);
-    // Stop before mythic/alternate sections appended to the same page.
-    description = description.split(/\s+Mythic\s+/)[0].trim();
+    // Stop before mythic/alternate sections appended to the same page, and
+    // before the site footer that follows the article.
+    description = description.split(/\s+Mythic\s+/)[0];
+    const junk = description.search(
+      /\s*(?:Site Owner\b|Email Spam Checker\b|MX Guarddog\b|adsbygoogle\b|initiateToggle\b|initializeMenuToggle\b|All Rights Reserved\b)/i,
+    );
+    if (junk >= 0) description = description.slice(0, junk);
+    description = description.trim();
   }
 
   return {

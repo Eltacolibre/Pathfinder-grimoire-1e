@@ -74,7 +74,7 @@ function parseComponents(raw) {
 }
 
 function shorten(text, fallback) {
-  const clean = (text || "").replace(/\s+/g, " ").trim();
+  const clean = stripBoilerplate(text).replace(/\s+/g, " ").trim();
   if (!clean) return fallback || "See the Archives of Nethys entry for details.";
   if (clean.length <= 160) return clean;
   const cut = clean.slice(0, 157);
@@ -82,9 +82,19 @@ function shorten(text, fallback) {
   return `${cut.slice(0, lastSpace > 80 ? lastSpace : 157)}…`;
 }
 
+// The scraped page text runs on past the spell into site chrome — the footer
+// credit, ad-loader and theme-toggle scripts. Cut at the first sign of it.
+const BOILERPLATE =
+  /\s*(?:Site Owner\b|Email Spam Checker\b|MX Guarddog\b|\(adsbygoogle\b|adsbygoogle\b|initiateToggle\b|initializeMenuToggle\b|window\.\w|document\.getElementById\b|All Rights Reserved\b|Latest Pathfinder products\b)/i;
+
+function stripBoilerplate(text) {
+  const cut = (text || "").search(BOILERPLATE);
+  return cut >= 0 ? text.slice(0, cut) : text || "";
+}
+
 // Keep the page from ballooning: store a trimmed description and point at AoN.
 function trimDescription(text) {
-  const clean = (text || "").replace(/\s+/g, " ").trim();
+  const clean = stripBoilerplate(text).replace(/\s+/g, " ").trim();
   const LIMIT = 500;
   if (clean.length <= LIMIT) return clean;
   const cut = clean.slice(0, LIMIT);
