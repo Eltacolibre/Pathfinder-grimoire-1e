@@ -21,6 +21,7 @@ import {
 } from "../types";
 import { CASTER_CLASSES } from "../data/classesData";
 import { CLERIC_DOMAINS } from "../data/domainsData";
+import { getDomainGrants, effectiveSpellLevel } from "../utils/domainSpells";
 import {
   calculateSaveDC,
   getCharacterSlotsBreakdownForClass,
@@ -83,19 +84,37 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
     (d) => d.name.toLowerCase() === secondaryDomainName.toLowerCase() || d.id === secondaryDomainName.toLowerCase()
   );
 
-  // Filter known spells available for character
-  const knownSpells = character.knownSpellIds
-    .map((id) => spellMap.get(id))
-    .filter((s): s is Spell => s !== undefined);
+  // Metamagic raises the slot a spell needs, so it narrows what fits.
+  const metamagicLevelAdjustment = selectedMetamagic.reduce(
+    (sum, feat) =>
+      sum + (METAMAGIC_OPTIONS.find((o) => o.feat === feat)?.levelAdjustment ?? 0),
+    0,
+  );
+
+  // Domains grant their spells on top of the class list, and most of them are
+  // not class spells at all, so they have to be merged into what can be
+  // prepared — otherwise they never appear anywhere.
+  const domainGrants = getDomainGrants(activeClass, allSpells);
+
+  const knownSpells = (() => {
+    const pool = new Map<string, Spell>();
+    for (const id of character.knownSpellIds) {
+      const s = spellMap.get(id);
+      if (s) pool.set(s.id, s);
+    }
+    for (const grant of domainGrants.values()) pool.set(grant.spell.id, grant.spell);
+    return [...pool.values()];
+  })();
+
+  const levelForCharacter = (spell: Spell): number | undefined =>
+    effectiveSpellLevel(spell, activeClass, domainGrants);
 
   // Helper to check if a spell belongs to primary or secondary domain
   const getSpellDomainTag = (spellName: string, level: number): string | null => {
-    if (primaryDomainObj && primaryDomainObj.grantedSpells[level]?.toLowerCase() === spellName.toLowerCase()) {
-      return primaryDomainObj.name;
-    }
-    if (secondaryDomainObj && secondaryDomainObj.grantedSpells[level]?.toLowerCase() === spellName.toLowerCase()) {
-      return secondaryDomainObj.name;
-    }
+    const grant = [...domainGrants.values()].find(
+      (g) => g.spell.name.toLowerCase() === spellName.toLowerCase(),
+    );
+    if (grant && grant.level === level) return grant.domainName;
     return null;
   };
 
@@ -289,7 +308,7 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
 
             // Spells known of this level
             const levelKnownSpells = knownSpells.filter(
-              (s) => s.classes[character.casterClass] === level
+              (s) => levelForCharacter(s) === level
             );
 
             if (level > classDef.maxSpellLevel || (maxSlots === 0 && level > 0)) return null;
@@ -385,12 +404,20 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
             const level = slotInfo.level;
             const maxCapacity = slotInfo.total;
 
-            if (level > classDef.maxSpellLevel || (maxCapacity === 0 && level > 0)) return null;
-
             // Get prepared spell instances for this level
             const levelPrepared = character.preparedSpells.filter(
               (p) => p.slotLevel === level
             );
+
+            // Hide levels with no slots, but keep showing any that still hold
+            // prepared spells — after a level change they would otherwise be
+            // stranded somewhere the player cannot reach to remove them.
+            if (
+              level > classDef.maxSpellLevel ||
+              (maxCapacity === 0 && level > 0 && levelPrepared.length === 0)
+            ) {
+              return null;
+            }
 
             const saveDc = calculateSaveDC(character, level);
 
@@ -523,7 +550,7 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
 
       {/* Modal for Preparing a Spell into a specific level slot */}
       {preparingSlotLevel !== null && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 overflow-y-auto">
           <div className="bg-[#1a1614] border border-[#d4af37]/60 rounded-sm max-w-2xl w-full shadow-2xl overflow-hidden my-8">
             <div className="bg-[#14100e] px-6 py-4 border-b border-[#3d2e24] flex items-center justify-between">
               <div>
@@ -669,6 +696,13 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
                   <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
                     {knownSpells
                       .filter((spell) => {
+                        // A spell only fits a slot of its own level or higher,
+                        // and metamagic pushes it further up. Without this a
+                        // 1st-level slot would offer 9th-level spells.
+                        const baseLvl = levelForCharacter(spell);
+                        if (baseLvl === undefined) return false;
+                        if (baseLvl + metamagicLevelAdjustment > (preparingSlotLevel ?? 0)) return false;
+
                         if (domainFilter === "primary" && primaryDomainObj) {
                           return primaryDomainObj.grantedSpells[preparingSlotLevel ?? 0]?.toLowerCase() === spell.name.toLowerCase();
                         }
@@ -678,7 +712,7 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
                         return true;
                       })
                       .map((spell) => {
-                        const baseLvl = spell.classes[character.casterClass] ?? 0;
+                        const baseLvl = levelForCharacter(spell) ?? 0;
                         const domainTag = getSpellDomainTag(spell.name, preparingSlotLevel ?? 0);
 
                         return (

@@ -84,7 +84,7 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 overflow-y-auto">
       <div className="bg-[#1a1614] border border-[#d4af37]/60 rounded-sm max-w-3xl w-full h-[600px] shadow-2xl flex flex-col overflow-hidden my-8">
         {/* Header */}
         <div className="bg-[#14100e] px-6 py-4 border-b border-[#3d2e24] flex items-center justify-between shrink-0">

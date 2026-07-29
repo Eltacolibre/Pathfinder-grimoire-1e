@@ -20,8 +20,9 @@ import {
   loadStoredCustomSpells,
   saveStoredCustomSpells,
   autoInscribeClassSpells,
+  getCharacterSlotsBreakdown,
 } from "./utils/pf1eUtils";
-import { FULL_LIST_CLASSES } from "./data/classesData";
+import { CASTER_CLASSES, FULL_LIST_CLASSES } from "./data/classesData";
 import { exportCharacterSpellSheetPDF } from "./utils/pdfExport";
 
 // Default Preset Heroes for fast onboarding
@@ -278,6 +279,20 @@ export default function App() {
   const handleQuickPrepare = (spell: Spell) => {
     if (!activeCharacter) return;
     const spellLvl = spell.classes[activeCharacter.casterClass] ?? 0;
+
+    // Refuse levels the class cannot cast yet, otherwise the spell is filed
+    // into a slot tier that is hidden and silently disappears.
+    const slots = getCharacterSlotsBreakdown(activeCharacter);
+    const capacity = slots.find((s) => s.level === spellLvl)?.total ?? 0;
+    if (spellLvl > 0 && capacity === 0) {
+      const classDef = CASTER_CLASSES[activeCharacter.casterClass];
+      alert(
+        `${activeCharacter.name} has no level ${spellLvl} spell slots yet. ` +
+          `A ${classDef?.name ?? activeCharacter.casterClass} gains those at a higher class level — ` +
+          `bonus spells from a high ability score do not grant access on their own.`,
+      );
+      return;
+    }
 
     const newPrep = {
       id: `prep_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,

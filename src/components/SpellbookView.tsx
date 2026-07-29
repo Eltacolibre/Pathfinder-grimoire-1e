@@ -5,6 +5,7 @@ import { SpellFilterBar } from "./SpellFilterBar";
 import { SpellCard } from "./SpellCard";
 import { CLERIC_DOMAINS } from "../data/domainsData";
 import { CASTER_CLASSES, FULL_LIST_CLASSES } from "../data/classesData";
+import { getDomainGrants } from "../utils/domainSpells";
 import { filterSpellsList, getActiveClassEntry } from "../utils/pf1eUtils";
 
 interface SpellbookViewProps {
@@ -43,7 +44,18 @@ export const SpellbookView: React.FC<SpellbookViewProps> = ({
 
   const [inscribedBannerMsg, setInscribedBannerMsg] = useState<string | null>(null);
 
-  const knownSpells = allSpells.filter((s) => character.knownSpellIds.includes(s.id));
+  // Domain spells are granted on top of the class list — most are not class
+  // spells at all — so merge them in or they never appear in the grimoire.
+  const domainGrants = getDomainGrants(activeClass, allSpells);
+  const knownSpells = (() => {
+    const known = new Set(character.knownSpellIds);
+    const pool = allSpells.filter((s) => known.has(s.id));
+    const seen = new Set(pool.map((s) => s.id));
+    for (const grant of domainGrants.values()) {
+      if (!seen.has(grant.spell.id)) pool.push(grant.spell);
+    }
+    return pool;
+  })();
 
   const filteredSpells = filterSpellsList(knownSpells, {
     ...filter,

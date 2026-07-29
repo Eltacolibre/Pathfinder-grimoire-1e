@@ -84,12 +84,16 @@ export function getCharacterSlotsBreakdownForClass(classEntry: CharacterClassEnt
   for (let l = 0; l <= maxLvl; l++) {
     const rawBase = levelRow[l] ?? 0;
 
-    // Special rule for 4-level casters or classes with 0 base slots prior to high ability bonus
-    const bonus = getBonusSlotsForLevel(mod, l);
+    // Access to a spell level comes from the class table alone. A high ability
+    // score grants bonus spells only for levels the class already casts, so a
+    // 1st-level Cleric with Wisdom 20 still has no 2nd-level slots.
+    const hasAccess = rawBase > 0;
 
-    // Specialty slot (1 per day per spell level L >= 1 if base > 0 or bonus > 0)
+    const bonus = hasAccess ? getBonusSlotsForLevel(mod, l) : 0;
+
+    // Specialty slot (1 per day per spell level L >= 1) follows the same rule.
     let specialty = 0;
-    if (l >= 1 && classDef.hasSpecialtySlot && (rawBase > 0 || bonus > 0)) {
+    if (l >= 1 && hasAccess && classDef.hasSpecialtySlot) {
       specialty = 1;
     }
 
