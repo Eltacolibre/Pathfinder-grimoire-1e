@@ -3,11 +3,9 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
 
-export default defineConfig(({command}) => {
+export default defineConfig(() => {
   return {
-    // Served from https://eltacolibre.github.io/Pathfinder-grimoire-1e/ on GitHub
-    // Pages, so built asset URLs need the repo name prefix. Dev stays at root.
-    base: command === 'build' ? '/Pathfinder-grimoire-1e/' : '/',
+    base: './',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

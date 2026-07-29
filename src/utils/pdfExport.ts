@@ -5,7 +5,6 @@ import {
   calculateAbilityModifier,
   calculateSaveDC,
   getCharacterSlotsBreakdown,
-  knowsEntireSpellList,
 } from "./pf1eUtils";
 
 export function exportCharacterSpellSheetPDF(character: Character, allSpells: Spell[]) {
@@ -172,14 +171,10 @@ export function exportCharacterSpellSheetPDF(character: Character, allSpells: Sp
       };
     });
   } else {
-    // If no daily prepared spells yet, list Known Spells. Casters who know
-    // their entire class list are skipped here — dumping every cleric spell
-    // would run to dozens of pages and tell the player nothing.
-    const knownSpells = knowsEntireSpellList(character)
-      ? []
-      : character.knownSpellIds
-          .map((id) => spellMap.get(id))
-          .filter((s): s is Spell => s !== undefined);
+    // If no daily prepared spells yet, list Known Spells
+    const knownSpells = character.knownSpellIds
+      .map((id) => spellMap.get(id))
+      .filter((s): s is Spell => s !== undefined);
 
     displayItems = knownSpells.map((spell) => {
       const level = spell.classes[character.casterClass] ?? 0;

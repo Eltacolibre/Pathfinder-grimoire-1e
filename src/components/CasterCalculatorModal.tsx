@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { X, Dices, Shield, Zap, Sparkles, AlertCircle, RefreshCw } from "lucide-react";
 import { Character } from "../types";
 import { calculateAbilityModifier, calculateSaveDC } from "../utils/pf1eUtils";
-import { NumberField } from "./NumberField";
 
 interface CasterCalculatorModalProps {
   character: Character;
@@ -103,10 +102,10 @@ export const CasterCalculatorModal: React.FC<CasterCalculatorModalProps> = ({
 
               <div className="flex items-center gap-2">
                 <span className="text-[#8c7a65]">Misc Bonus:</span>
-                <NumberField
+                <input
+                  type="number"
                   value={customBonus}
-                  onChange={setCustomBonus}
-                  allowNegative
+                  onChange={(e) => setCustomBonus(parseInt(e.target.value) || 0)}
                   className="w-16 bg-[#1c1714] border border-[#3d2e24] rounded-sm px-2 py-0.5 text-[#d4c5b3] font-mono text-center"
                 />
               </div>
@@ -149,10 +148,11 @@ export const CasterCalculatorModal: React.FC<CasterCalculatorModalProps> = ({
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-[10px] text-[#8c7a65]">
                     <span>Damage Taken this round:</span>
-                    <NumberField
-                      min={0}
+                    <input
+                      type="number"
+                      min={1}
                       value={damageTaken}
-                      onChange={setDamageTaken}
+                      onChange={(e) => setDamageTaken(parseInt(e.target.value) || 0)}
                       className="w-16 bg-[#1c1714] border border-[#3d2e24] rounded-sm px-2 py-0.5 text-[#d4c5b3] font-mono text-center"
                     />
                   </div>

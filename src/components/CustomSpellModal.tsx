@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { X, Sparkles, PlusCircle } from "lucide-react";
 import { Spell, SpellSchool, SpellComponent, CasterClass } from "../types";
 import { CASTER_CLASSES } from "../data/classesData";
-import { NumberField } from "./NumberField";
 
 interface CustomSpellModalProps {
   isOpen: boolean;
@@ -149,11 +148,12 @@ export const CustomSpellModal: React.FC<CustomSpellModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-bold uppercase text-[#d4af37] tracking-wider mb-1">Spell Level (0 - 9)</label>
-              <NumberField
+              <input
+                type="number"
                 min={0}
                 max={9}
                 value={level}
-                onChange={setLevel}
+                onChange={(e) => setLevel(parseInt(e.target.value) || 0)}
                 className="w-full bg-[#1c1714] border border-[#3d2e24] rounded-sm p-2 text-[#d4c5b3] focus:outline-none focus:border-[#d4af37] font-mono"
               />
             </div>

@@ -1,12 +1,6 @@
 import React, { useState } from "react";
-import { X, Bot, Send, Loader2, KeyRound, ExternalLink } from "lucide-react";
+import { X, Bot, Send, Sparkles, Wand2, BookOpen, Loader2 } from "lucide-react";
 import { Character } from "../types";
-import {
-  MissingApiKeyError,
-  askArcaneAdvisor,
-  loadApiKey,
-  saveApiKey,
-} from "../utils/geminiClient";
 
 interface AiAssistantModalProps {
   isOpen: boolean;
@@ -21,8 +15,6 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
 }) => {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showKeyPanel, setShowKeyPanel] = useState(false);
-  const [apiKeyDraft, setApiKeyDraft] = useState(() => loadApiKey());
   const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; text: string }>>([
     {
       role: "assistant",
@@ -42,35 +34,40 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
     setLoading(true);
 
     try {
-      const text = await askArcaneAdvisor(
-        userQuery,
-        activeCharacter
-          ? {
-              name: activeCharacter.name,
-              class: activeCharacter.casterClass,
-              level: activeCharacter.level,
-              specialization: activeCharacter.specialization,
-              knownSpellsCount: activeCharacter.knownSpellIds.length,
-            }
-          : null,
-      );
-      setMessages((prev) => [...prev, { role: "assistant", text }]);
-    } catch (err: any) {
-      if (err instanceof MissingApiKeyError) {
-        setShowKeyPanel(true);
+      const res = await fetch("/api/gemini/spell-assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: userQuery,
+          context: activeCharacter
+            ? {
+                name: activeCharacter.name,
+                class: activeCharacter.casterClass,
+                level: activeCharacter.level,
+                specialization: activeCharacter.specialization,
+                knownSpellsCount: activeCharacter.knownSpellIds.length,
+              }
+            : null,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.text) {
+        setMessages((prev) => [...prev, { role: "assistant", text: data.text }]);
+      } else {
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
-            text: "This advisor needs a Gemini API key to consult the archives. Google gives them away free — paste one below and it stays in this browser only.",
+            text: `Error: ${data.error || "Unable to consult the arcane forces at this time."}`,
           },
         ]);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", text: `Arcane interference: ${err.message}` },
-        ]);
       }
+    } catch (err: any) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: `Connection failure: ${err.message}` },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -105,73 +102,13 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setShowKeyPanel((v) => !v)}
-              title="Configure your Gemini API key"
-              className={`p-1.5 rounded hover:bg-[#2d241c] transition ${
-                showKeyPanel ? "text-[#d4af37]" : "text-[#8c7a65] hover:text-[#e2d5c3]"
-              }`}
-            >
-              <KeyRound className="w-4 h-4" />
-            </button>
-            <button
-              onClick={onClose}
-              className="text-[#8c7a65] hover:text-[#e2d5c3] p-1.5 rounded hover:bg-[#2d241c] transition"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="text-[#8c7a65] hover:text-[#e2d5c3] p-1.5 rounded hover:bg-[#2d241c] transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-
-        {/* API Key Panel */}
-        {showKeyPanel && (
-          <div className="px-6 py-4 bg-[#1c1714] border-b border-[#3d2e24] shrink-0">
-            <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[#d4af37] mb-2">
-              <KeyRound className="w-3.5 h-3.5" />
-              <span>Your Gemini API Key</span>
-            </label>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="password"
-                value={apiKeyDraft}
-                onChange={(e) => setApiKeyDraft(e.target.value)}
-                placeholder="AIza..."
-                className="flex-1 bg-[#14100e] border border-[#3d2e24] rounded-sm px-3 py-2 text-sm text-[#d4c5b3] placeholder-[#8c7a65] focus:outline-none focus:border-[#d4af37] font-mono"
-              />
-              <button
-                onClick={() => {
-                  saveApiKey(apiKeyDraft);
-                  setShowKeyPanel(false);
-                  setMessages((prev) => [
-                    ...prev,
-                    {
-                      role: "assistant",
-                      text: apiKeyDraft.trim()
-                        ? "Key stored. The archives are open — ask away."
-                        : "Key cleared from this browser.",
-                    },
-                  ]);
-                }}
-                className="px-4 py-2 rounded-sm font-serif font-bold text-xs uppercase tracking-wider bg-[#2d241c] hover:bg-[#d4af37] text-[#d4af37] hover:text-[#1a1614] border border-[#d4af37] transition shrink-0"
-              >
-                Save Key
-              </button>
-            </div>
-            <p className="text-[11px] text-[#8c7a65] font-serif italic mt-2 leading-relaxed">
-              Stored in this browser only (localStorage) and sent straight to Google — never to
-              this site's host.{" "}
-              <a
-                href="https://aistudio.google.com/apikey"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#d4af37] hover:underline inline-flex items-center gap-1"
-              >
-                Get a free key <ExternalLink className="w-3 h-3" />
-              </a>
-            </p>
-          </div>
-        )}
 
         {/* Chat History */}
         <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-[#14100e]">

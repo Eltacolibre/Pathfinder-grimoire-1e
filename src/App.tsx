@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { Coffee, Loader2 } from "lucide-react";
 import { Header } from "./components/Header";
 import { DailyPreparationView } from "./components/DailyPreparationView";
 import { SpellbookView } from "./components/SpellbookView";
@@ -10,7 +9,7 @@ import { AiAssistantModal } from "./components/AiAssistantModal";
 import { CustomSpellModal } from "./components/CustomSpellModal";
 import { CasterCalculatorModal } from "./components/CasterCalculatorModal";
 import { Character, Spell } from "./types";
-import { SEED_SPELLS, loadSpellLibrary } from "./utils/spellLibrary";
+import { INITIAL_PAIZO_SPELLS } from "./data/spellsData";
 import {
   loadStoredCharacters,
   saveStoredCharacters,
@@ -18,7 +17,9 @@ import {
   saveActiveCharacterId,
   loadStoredCustomSpells,
   saveStoredCustomSpells,
+  autoInscribeClassSpells,
 } from "./utils/pf1eUtils";
+import { FULL_LIST_CLASSES } from "./data/classesData";
 import { exportCharacterSpellSheetPDF } from "./utils/pdfExport";
 
 // Default Preset Heroes for fast onboarding
@@ -145,25 +146,11 @@ const PRESET_CHARACTERS: Character[] = [
 ];
 
 export default function App() {
-  // Spells database (Paizo + Custom). Starts on the bundled seed so the app
-  // renders immediately, then swaps in the full library once it downloads.
+  // Spells database (Paizo + Custom)
   const [allSpells, setAllSpells] = useState<Spell[]>(() => {
     const customSpells = loadStoredCustomSpells();
-    return [...SEED_SPELLS, ...customSpells];
+    return [...INITIAL_PAIZO_SPELLS, ...customSpells];
   });
-  const [libraryLoading, setLibraryLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    loadSpellLibrary().then((library) => {
-      if (cancelled) return;
-      setAllSpells([...library, ...loadStoredCustomSpells()]);
-      setLibraryLoading(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // Characters List
   const [characters, setCharacters] = useState<Character[]>(() => {
@@ -203,13 +190,18 @@ export default function App() {
   const activeCharacter = characters.find((c) => c.id === activeCharacterId) || characters[0] || null;
 
   // Character Management Handlers
-  const handleSaveCharacter = (char: Character) => {
+  const handleSaveCharacter = (char: Character, autoInscribe?: boolean) => {
+    let finalChar = char;
+    if (autoInscribe && FULL_LIST_CLASSES.includes(char.casterClass)) {
+      finalChar = autoInscribeClassSpells(char, char.casterClass, allSpells);
+    }
+
     const exists = characters.some((c) => c.id === char.id);
     if (exists) {
-      setCharacters(characters.map((c) => (c.id === char.id ? char : c)));
+      setCharacters(characters.map((c) => (c.id === finalChar.id ? finalChar : c)));
     } else {
-      setCharacters([char, ...characters]);
-      setActiveCharacterId(char.id);
+      setCharacters([finalChar, ...characters]);
+      setActiveCharacterId(finalChar.id);
     }
   };
 
@@ -320,14 +312,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {libraryLoading && (
-          <div className="mb-4 flex items-center gap-2 rounded-sm border border-[#3d2e24] bg-[#14100e] px-3 py-2 text-[11px] font-serif italic text-[#8c7a65]">
-            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-[#d4af37]" />
-            <span>Loading the full Paizo spell library…</span>
-          </div>
-        )}
-
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === "daily" && activeCharacter && (
           <DailyPreparationView
             character={activeCharacter}
@@ -359,65 +344,6 @@ export default function App() {
           />
         )}
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-[#3d2e24] bg-[#14100e] text-[#8c7a65] mt-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-          <p className="font-serif italic text-center sm:text-left">
-            Free to use, no account, everything saved in your browser. If it saved you time at
-            the table, a coffee keeps the candles lit.
-          </p>
-
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <a
-              href="https://ko-fi.com/bagquest"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 border border-[#d4af37] bg-[#2d241c] text-[#d4af37] font-bold uppercase tracking-widest hover:bg-[#d4af37] hover:text-[#1a1614] transition-colors shadow-sm whitespace-nowrap"
-            >
-              <Coffee className="w-4 h-4" />
-              <span>Support on Ko-fi</span>
-            </a>
-
-            <div className="flex items-center gap-3 font-serif">
-              <a
-                href="https://bagquest.itch.io"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-[#d4af37] transition"
-              >
-                Bagquest
-              </a>
-              <span className="text-[#3d2e24]">•</span>
-              <a
-                href="https://eltacolibre.github.io/mapforge/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-[#d4af37] transition"
-              >
-                MapForge
-              </a>
-              <span className="text-[#3d2e24]">•</span>
-              <a
-                href="https://eltacolibre.github.io/dice-tray/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-[#d4af37] transition"
-              >
-                Dice Tray
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <div className="border-t border-[#3d2e24] px-4 py-3">
-          <p className="max-w-7xl mx-auto text-[10px] text-[#6b5c4c] font-serif italic text-center sm:text-left">
-            Unofficial fan tool. Pathfinder and associated marks are trademarks of Paizo Inc.
-            Spell text used under the Open Game License; this project is not affiliated with or
-            endorsed by Paizo.
-          </p>
-        </div>
-      </footer>
 
       {/* Modals */}
       <CharacterModal

@@ -1,15 +1,14 @@
-import React, { useEffect, useState } from "react";
-import { X, Shield, Wand2, Sparkles, Check, BookOpen } from "lucide-react";
-import { Character, CasterClass, SpellSchool } from "../types";
-import { CASTER_CLASSES } from "../data/classesData";
+import React, { useState } from "react";
+import { X, Shield, Wand2, Sparkles, Check, BookOpen, Plus, Trash2, Layers } from "lucide-react";
+import { Character, CasterClass, SpellSchool, CharacterClassEntry } from "../types";
+import { CASTER_CLASSES, FULL_LIST_CLASSES } from "../data/classesData";
 import { CLERIC_DOMAINS } from "../data/domainsData";
 import { calculateAbilityModifier } from "../utils/pf1eUtils";
-import { NumberField } from "./NumberField";
 
 interface CharacterModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (character: Character) => void;
+  onSave: (character: Character, autoInscribe?: boolean) => void;
   existingCharacter?: Character | null;
 }
 
@@ -49,32 +48,21 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
     existingCharacter?.oppositionSchools || ["Necromancy", "Enchantment"]
   );
 
-  // The modal stays mounted between openings, so the initialisers above only
-  // ever run once — without this, editing a character showed whatever was last
-  // typed (or the defaults) and saving overwrote their name and class.
-  useEffect(() => {
-    if (!isOpen) return;
-    const isCleric = existingCharacter?.casterClass === "cleric";
-    setName(existingCharacter?.name ?? "Ezren the Pious");
-    setCasterClass(existingCharacter?.casterClass ?? "cleric");
-    setLevel(existingCharacter?.level ?? 5);
-    setAbilityScore(existingCharacter?.abilityScore ?? 18);
-    setSpecialization(
-      existingCharacter?.specialization ?? (isCleric ? "Sun Domain" : "Evocation")
-    );
-    setSecondarySpecialization(
-      existingCharacter?.secondarySpecialization ?? (isCleric ? "Fire Domain" : "")
-    );
-    setOppositionSchools(
-      existingCharacter?.oppositionSchools ?? ["Necromancy", "Enchantment"]
-    );
-  }, [isOpen, existingCharacter]);
+  // Multiclassing state
+  const [multiclassEntries, setMulticlassEntries] = useState<CharacterClassEntry[]>(
+    existingCharacter?.multiclassEntries || []
+  );
+
+  // Auto-inscribe full class list option
+  const [autoInscribe, setAutoInscribe] = useState<boolean>(true);
 
   if (!isOpen) return null;
 
   const currentClassDef = CASTER_CLASSES[casterClass];
   const mod = calculateAbilityModifier(abilityScore);
   const modStr = mod >= 0 ? `+${mod}` : `${mod}`;
+
+  const isFullListClass = FULL_LIST_CLASSES.includes(casterClass);
 
   const toggleOppositionSchool = (school: SpellSchool) => {
     if (oppositionSchools.includes(school)) {
@@ -86,6 +74,35 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
     }
   };
 
+  const handleAddMulticlass = () => {
+    const newClass: CasterClass = casterClass === "wizard" ? "cleric" : "wizard";
+    const newEntry: CharacterClassEntry = {
+      id: `mc_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      casterClass: newClass,
+      level: 3,
+      primaryAbility: CASTER_CLASSES[newClass].primaryAbility,
+      abilityScore: 16,
+      specialization: "",
+      preparedSpells: [],
+      spontaneousSlotsUsed: {},
+    };
+    setMulticlassEntries([...multiclassEntries, newEntry]);
+  };
+
+  const handleUpdateMulticlass = (index: number, updated: Partial<CharacterClassEntry>) => {
+    const copy = [...multiclassEntries];
+    const item = { ...copy[index], ...updated };
+    if (updated.casterClass) {
+      item.primaryAbility = CASTER_CLASSES[updated.casterClass].primaryAbility;
+    }
+    copy[index] = item;
+    setMulticlassEntries(copy);
+  };
+
+  const handleRemoveMulticlass = (index: number) => {
+    setMulticlassEntries(multiclassEntries.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -95,17 +112,19 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
       casterClass,
       level: Math.min(Math.max(level, 1), 20),
       primaryAbility: currentClassDef.primaryAbility,
-      abilityScore: Math.min(Math.max(abilityScore, 1), 99),
+      abilityScore: Math.min(Math.max(abilityScore, 1), 50),
       specialization: specialization.trim(),
       secondarySpecialization: casterClass === "cleric" ? secondarySpecialization.trim() : undefined,
       oppositionSchools: currentClassDef.allowsOppositionSchools ? oppositionSchools : [],
       knownSpellIds: existingCharacter?.knownSpellIds || [],
       preparedSpells: existingCharacter?.preparedSpells || [],
       spontaneousSlotsUsed: existingCharacter?.spontaneousSlotsUsed || {},
+      multiclassEntries: multiclassEntries.length > 0 ? multiclassEntries : undefined,
+      activeClassIndex: existingCharacter?.activeClassIndex || 0,
       createdAt: existingCharacter?.createdAt || Date.now(),
     };
 
-    onSave(char);
+    onSave(char, autoInscribe);
     onClose();
   };
 
@@ -118,7 +137,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-[#1a1614] border border-[#d4af37]/60 rounded-sm max-w-2xl w-full shadow-2xl overflow-hidden my-8">
+      <div className="bg-[#1a1614] border border-[#d4af37]/60 rounded-sm max-w-3xl w-full shadow-2xl overflow-hidden my-8">
         {/* Header */}
         <div className="bg-[#14100e] px-6 py-4 border-b border-[#3d2e24] flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -145,7 +164,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6 text-[#d4c5b3]">
-          {/* Character Name & Class */}
+          {/* Character Name & Primary Class */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-bold uppercase text-[#d4af37] tracking-wider mb-1">
@@ -163,7 +182,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
 
             <div>
               <label className="block text-[10px] font-bold uppercase text-[#d4af37] tracking-wider mb-1">
-                Paizo Caster Class
+                Primary Caster Class
               </label>
               <select
                 value={casterClass}
@@ -188,32 +207,66 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
             </div>
           </div>
 
-          {/* Level & Ability Score */}
+          {/* Level & Ability Score (Mobile & Desktop Touch Friendly Inputs) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-[10px] font-bold uppercase text-[#d4af37] tracking-wider mb-1">
                 Class Level (1 - 20)
               </label>
-              <NumberField
-                min={1}
-                max={20}
-                value={level}
-                onChange={setLevel}
-                className="w-full bg-[#1c1714] border border-[#3d2e24] rounded-sm px-3 py-2 text-[#d4c5b3] focus:outline-none focus:border-[#d4af37] text-sm font-mono"
-              />
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setLevel(Math.max(1, level - 1))}
+                  className="bg-[#2d241c] hover:bg-[#3d2e24] text-[#d4af37] px-2.5 py-2 rounded-sm border border-[#3d2e24] font-mono text-sm font-bold"
+                >
+                  -
+                </button>
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={level}
+                  onChange={(e) => setLevel(parseInt(e.target.value) || 1)}
+                  className="w-full bg-[#1c1714] border border-[#3d2e24] rounded-sm px-3 py-2 text-[#d4c5b3] focus:outline-none focus:border-[#d4af37] text-sm font-mono text-center"
+                />
+                <button
+                  type="button"
+                  onClick={() => setLevel(Math.min(20, level + 1))}
+                  className="bg-[#2d241c] hover:bg-[#3d2e24] text-[#d4af37] px-2.5 py-2 rounded-sm border border-[#3d2e24] font-mono text-sm font-bold"
+                >
+                  +
+                </button>
+              </div>
             </div>
 
             <div>
               <label className="block text-[10px] font-bold uppercase text-[#d4af37] tracking-wider mb-1">
-                {currentClassDef.primaryAbility.toUpperCase()} Score
+                {currentClassDef.primaryAbility.toUpperCase()} Score (Any Value)
               </label>
-              <NumberField
-                min={1}
-                max={99}
-                value={abilityScore}
-                onChange={setAbilityScore}
-                className="w-full bg-[#1c1714] border border-[#3d2e24] rounded-sm px-3 py-2 text-[#d4c5b3] focus:outline-none focus:border-[#d4af37] text-sm font-mono"
-              />
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setAbilityScore(Math.max(1, abilityScore - 1))}
+                  className="bg-[#2d241c] hover:bg-[#3d2e24] text-[#d4af37] px-2.5 py-2 rounded-sm border border-[#3d2e24] font-mono text-sm font-bold"
+                >
+                  -
+                </button>
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={abilityScore}
+                  onChange={(e) => setAbilityScore(parseInt(e.target.value) || 10)}
+                  className="w-full bg-[#1c1714] border border-[#3d2e24] rounded-sm px-3 py-2 text-[#d4c5b3] focus:outline-none focus:border-[#d4af37] text-sm font-mono text-center"
+                />
+                <button
+                  type="button"
+                  onClick={() => setAbilityScore(abilityScore + 1)}
+                  className="bg-[#2d241c] hover:bg-[#3d2e24] text-[#d4af37] px-2.5 py-2 rounded-sm border border-[#3d2e24] font-mono text-sm font-bold"
+                >
+                  +
+                </button>
+              </div>
             </div>
 
             <div>
@@ -225,6 +278,24 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Full List Divine Caster Option */}
+          {isFullListClass && (
+            <div className="bg-[#14100e] border border-[#d4af37]/40 p-3 rounded-sm">
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-[#e2d5c3]">
+                <input
+                  type="checkbox"
+                  checked={autoInscribe}
+                  onChange={(e) => setAutoInscribe(e.target.checked)}
+                  className="accent-[#d4af37]"
+                />
+                <span className="font-serif">
+                  <strong className="text-[#d4af37]">Auto-Inscribe Class Spell List: </strong>
+                  In Pathfinder 1e, <span className="capitalize">{casterClass}s</span> automatically know all spells on their class list.
+                </span>
+              </label>
+            </div>
+          )}
 
           {/* Specialization / Domain / Bloodline */}
           {casterClass === "cleric" ? (
@@ -344,9 +415,6 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
                 placeholder="e.g. Evocation, Sun Domain, Draconic Bloodline, Time Patron"
                 className="w-full bg-[#1c1714] border border-[#3d2e24] rounded-sm px-3 py-2 text-[#d4c5b3] placeholder-[#8c7a65] focus:outline-none focus:border-[#d4af37] text-sm font-serif"
               />
-              <p className="text-[11px] text-[#8c7a65] mt-1 font-serif italic">
-                Gives extra specialty/school/domain slot per spell level or bonus spell additions.
-              </p>
             </div>
           )}
 
@@ -376,11 +444,117 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
                   );
                 })}
               </div>
-              <p className="text-[11px] text-[#8c7a65] mt-1 font-serif italic">
-                Preparing a spell from an opposition school costs 2 spell slots in PF1e rules.
-              </p>
             </div>
           )}
+
+          {/* Multiclassing Section */}
+          <div className="bg-[#14100e] border border-[#3d2e24] p-4 rounded-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-[#3d2e24] pb-2">
+              <span className="font-serif font-bold text-xs text-[#d4af37] uppercase tracking-wider flex items-center gap-1.5">
+                <Layers className="w-4 h-4" />
+                <span>Multiclass Spellcasting Entries</span>
+              </span>
+              <button
+                type="button"
+                onClick={handleAddMulticlass}
+                className="flex items-center gap-1 text-[11px] bg-[#2d241c] hover:bg-[#d4af37] text-[#d4af37] hover:text-[#1a1614] border border-[#d4af37] px-2.5 py-1 rounded-sm font-serif font-bold uppercase tracking-wider transition"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Add Multiclass</span>
+              </button>
+            </div>
+
+            {multiclassEntries.length === 0 ? (
+              <p className="text-xs text-[#8c7a65] italic font-serif">
+                Single class character. Click "+ Add Multiclass" if this hero has levels in additional spellcasting classes (e.g. Cleric / Wizard).
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {multiclassEntries.map((mc, idx) => {
+                  const mcDef = CASTER_CLASSES[mc.casterClass];
+                  const mcMod = calculateAbilityModifier(mc.abilityScore);
+
+                  return (
+                    <div key={mc.id} className="bg-[#1c1714] border border-[#3d2e24] p-3 rounded-sm space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-[#e2d5c3] font-serif uppercase tracking-wider">
+                          Secondary Class #{idx + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMulticlass(idx)}
+                          className="text-red-400 hover:text-red-300 p-1 rounded hover:bg-red-950 transition"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <div>
+                          <label className="block text-[9px] uppercase text-[#8c7a65] mb-1">Class</label>
+                          <select
+                            value={mc.casterClass}
+                            onChange={(e) => handleUpdateMulticlass(idx, { casterClass: e.target.value as CasterClass })}
+                            className="w-full bg-[#14100e] border border-[#3d2e24] rounded-sm p-1.5 text-[#d4c5b3]"
+                          >
+                            {Object.values(CASTER_CLASSES).map((cls) => (
+                              <option key={cls.id} value={cls.id}>
+                                {cls.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[9px] uppercase text-[#8c7a65] mb-1">Level (1-20)</label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={20}
+                            value={mc.level}
+                            onChange={(e) => handleUpdateMulticlass(idx, { level: parseInt(e.target.value) || 1 })}
+                            className="w-full bg-[#14100e] border border-[#3d2e24] rounded-sm p-1.5 text-[#d4c5b3] text-center font-mono"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[9px] uppercase text-[#8c7a65] mb-1">
+                            {mcDef.primaryAbility.toUpperCase()} Score
+                          </label>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min={1}
+                              max={50}
+                              value={mc.abilityScore}
+                              onChange={(e) => handleUpdateMulticlass(idx, { abilityScore: parseInt(e.target.value) || 10 })}
+                              className="w-full bg-[#14100e] border border-[#3d2e24] rounded-sm p-1.5 text-[#d4c5b3] text-center font-mono"
+                            />
+                            <span className="text-[#d4af37] font-mono text-xs font-bold whitespace-nowrap">
+                              ({mcMod >= 0 ? `+${mcMod}` : mcMod})
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[9px] uppercase text-[#8c7a65] mb-1">
+                          Specialization / Focus
+                        </label>
+                        <input
+                          type="text"
+                          value={mc.specialization || ""}
+                          onChange={(e) => handleUpdateMulticlass(idx, { specialization: e.target.value })}
+                          placeholder="e.g. Transmutation, Life Mystery"
+                          className="w-full bg-[#14100e] border border-[#3d2e24] rounded-sm p-1.5 text-[#d4c5b3]"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {/* Buttons */}
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#3d2e24]">
@@ -404,3 +578,4 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
     </div>
   );
 };
+

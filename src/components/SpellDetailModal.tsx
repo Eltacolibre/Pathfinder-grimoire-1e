@@ -1,5 +1,5 @@
 import React from "react";
-import { X, BookOpen, Scroll, Check, Plus, Shield, ExternalLink } from "lucide-react";
+import { X, BookOpen, Scroll, Check, Plus, Shield } from "lucide-react";
 import { Spell, Character } from "../types";
 import { CASTER_CLASSES } from "../data/classesData";
 import { calculateSaveDC } from "../utils/pf1eUtils";
@@ -114,22 +114,6 @@ export const SpellDetailModal: React.FC<SpellDetailModalProps> = ({
             <div className="prose prose-invert max-w-none text-sm leading-relaxed text-[#d4c5b3] whitespace-pre-line space-y-3 font-serif italic">
               {spell.description}
             </div>
-            {!spell.isCustom && (
-              <p className="mt-3 text-[11px] text-[#8c7a65] font-serif italic">
-                {spell.description.trimEnd().endsWith("[…]")
-                  ? "This entry is abridged. "
-                  : ""}
-                <a
-                  href={`https://www.aonprd.com/SpellDisplay.aspx?ItemName=${encodeURIComponent(spell.name)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#d4af37] hover:underline inline-flex items-center gap-1"
-                >
-                  Read the full text on Archives of Nethys
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </p>
-            )}
           </div>
 
           {/* Modal Footer Actions */}
