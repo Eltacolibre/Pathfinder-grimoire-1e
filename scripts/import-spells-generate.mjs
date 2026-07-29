@@ -46,12 +46,17 @@ function parseDescriptors(raw) {
 }
 
 // "adept 1, cleric 1, inquisitor 1" -> { cleric: 1, inquisitor: 1 }
+//
+// Entries often carry a trailing qualifier — "warpriest 0 (Sarenrae)",
+// "ranger 3 (Keleshite)" — so parentheticals are stripped before matching,
+// not after. Leaving them on drops the last class of every deity spell.
 function parseClasses(levelLine) {
   const out = {};
-  for (const chunk of (levelLine || "").split(",")) {
-    const m = chunk.trim().match(/^(.*?)\s+(\d+)$/);
+  const cleaned = (levelLine || "").replace(/\([^)]*\)/g, " ");
+  for (const chunk of cleaned.split(",")) {
+    const m = chunk.trim().match(/^([a-z][a-z\s/'-]*?)\s+(\d+)\b/i);
     if (!m) continue;
-    const name = m[1].toLowerCase().replace(/\s*\(.*?\)\s*/g, " ").trim();
+    const name = m[1].toLowerCase().replace(/\s+/g, " ").trim();
     const level = parseInt(m[2], 10);
     const id = CLASS_IDS[name];
     if (id && (out[id] === undefined || level < out[id])) out[id] = level;

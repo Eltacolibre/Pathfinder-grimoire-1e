@@ -56,6 +56,27 @@ if (process.argv[1] && process.argv[1].endsWith("lists.mjs")) {
     for (const [name, rec] of parsed) if (!union.has(name)) union.set(name, rec);
   }
   console.log("per class:", perClass);
-  console.log("union:", union.size);
+  console.log("union from class lists:", union.size);
+
+  // all.html (Spells.aspx?Class=All) covers every spell in the game, including
+  // ones that never appear on the six full-list divine lists. Names are enough
+  // here — level, school and the class map all come from the detail pages.
+  const allFile = `${DIR}/all.html`;
+  if (existsSync(allFile)) {
+    const html = readFileSync(allFile, "utf8");
+    let added = 0;
+    for (const m of html.matchAll(/SpellDisplay\.aspx\?ItemName=([^"]+)"/g)) {
+      const name = decode(decodeURIComponent(m[1].replace(/\+/g, " ")));
+      if (!union.has(name)) {
+        union.set(name, { name, level: NaN, short: "" });
+        added++;
+      }
+    }
+    console.log(`all-spells page added ${added}`);
+  } else {
+    console.log(`no ${allFile} — union limited to the class lists above`);
+  }
+
+  console.log("union total:", union.size);
   writeFileSync(`${DIR}/union.json`, JSON.stringify([...union.values()], null, 1));
 }

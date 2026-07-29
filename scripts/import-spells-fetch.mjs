@@ -42,25 +42,39 @@ const STOPS = [
   "Spell Resistance", "Description", "Mythic", "Source",
 ];
 
+// Everything from here on is site chrome, not spell text. Cutting before any
+// field is extracted keeps it out of Area/Saving Throw/Level as well as the
+// description — `field()` runs to the end of the text when the label it
+// expects next is absent, so an unbounded tail poisons whatever came last.
+const FOOTER =
+  /\s*(?:Site Owner\b|Email Spam Checker\b|MX Guarddog\b|adsbygoogle\b|initiateToggle\b|initializeMenuToggle\b|All Rights Reserved\b|Latest Pathfinder products\b)/i;
+
 function parseSpell(html, fallbackName) {
   // The stat block lives between the title and the mythic/section end.
   const start = html.indexOf("<h1");
   const body = html.slice(start > 0 ? start : 0);
-  const text = decode(body);
+  let text = decode(body);
+  const footerAt = text.search(FOOTER);
+  if (footerAt >= 0) text = text.slice(0, footerAt);
 
-  const school = field(text, "School", STOPS);
-  const levelLine = field(text, "Level", STOPS);
-  const castingTime = field(text, "Casting Time", STOPS);
-  const components = field(text, "Components", STOPS);
-  const range = field(text, "Range", STOPS);
-  const area = field(text, "Area", STOPS) || field(text, "Target", STOPS) || field(text, "Targets", STOPS) || field(text, "Effect", STOPS);
-  const duration = field(text, "Duration", STOPS);
-  const saving = field(text, "Saving Throw", STOPS);
-  const sr = field(text, "Spell Resistance", STOPS);
-  const source = field(text, "Source", STOPS);
+  // Confine stat lookups to the block above "Description". Phrases like "no
+  // spell resistance applies" occur in ordinary rules text, so a spell whose
+  // block omits that line would otherwise take its value from the prose.
+  const dIdx = text.indexOf(" Description ");
+  const stats = dIdx >= 0 ? text.slice(0, dIdx) : text;
+
+  const school = field(stats, "School", STOPS);
+  const levelLine = field(stats, "Level", STOPS);
+  const castingTime = field(stats, "Casting Time", STOPS);
+  const components = field(stats, "Components", STOPS);
+  const range = field(stats, "Range", STOPS);
+  const area = field(stats, "Area", STOPS) || field(stats, "Target", STOPS) || field(stats, "Targets", STOPS) || field(stats, "Effect", STOPS);
+  const duration = field(stats, "Duration", STOPS);
+  const saving = field(stats, "Saving Throw", STOPS);
+  const sr = field(stats, "Spell Resistance", STOPS);
+  const source = field(stats, "Source", STOPS);
 
   let description = "";
-  const dIdx = text.indexOf(" Description ");
   if (dIdx >= 0) {
     description = text.slice(dIdx + " Description ".length);
     // Stop before mythic/alternate sections appended to the same page, and

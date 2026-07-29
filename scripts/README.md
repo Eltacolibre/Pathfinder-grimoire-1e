@@ -7,15 +7,21 @@ branch that GitHub Pages serves.
 
 ## Spell import
 
-`public/spells.json` is generated, not hand-written. It holds the full Cleric,
-Druid, Paladin, Ranger, Warpriest and Shaman lists from the
-[Archives of Nethys](https://www.aonprd.com/Spells.aspx) (Open Game Content),
-along with every other class those spells appear on.
+`public/spells.json` is generated, not hand-written. It holds every spell in
+the [Archives of Nethys](https://www.aonprd.com/Spells.aspx) (Open Game
+Content) that belongs to a class the app models, mapped to the level it is for
+each of those classes.
 
-Those six are the classes that know their entire spell list, so their coverage
-has to be complete. Other classes are covered only where their spells overlap
-those lists — add a class to `CLASSES` in `import-spells-lists.mjs` and rerun
-to fill one in.
+Coverage comes from two places:
+
+- The per-class list pages in `CLASSES`, which supply the one-line summaries.
+  These are the six classes that know their entire spell list, so their
+  coverage must be exact.
+- `all.html`, the complete spell index, which catches everything else —
+  wizard-only, bard-only, and so on.
+
+Each spell's classes and levels are read from its own detail page, so a spell
+lands on every list it belongs to regardless of which page found it.
 
 Regenerate in three steps, run from the repo root:
 
@@ -32,13 +38,15 @@ node scripts/import-spells-fetch.mjs
 node scripts/import-spells-generate.mjs
 ```
 
-Steps 1 and 2 expect the class list HTML in the same directory as the scripts
-(`cleric.html`, `druid.html`, `paladin.html`, `ranger.html`, `warpriest.html`,
-`shaman.html`), downloaded from
-`https://www.aonprd.com/Spells.aspx?Class=<Name>`. Step 2 makes roughly 1,900
-requests, so keep the concurrency low and be a good citizen. It is resumable:
-`details.json` is written as it goes, and rerunning only fetches what is
-missing, so adding a class costs just the new spells.
+Steps 1 and 2 expect the list HTML in the same directory as the scripts:
+`cleric.html`, `druid.html`, `paladin.html`, `ranger.html`, `warpriest.html`
+and `shaman.html` from `https://www.aonprd.com/Spells.aspx?Class=<Name>`, plus
+`all.html` from `https://www.aonprd.com/Spells.aspx?Class=All`. Without
+`all.html` the import still works but covers only the six class lists.
+
+Step 2 makes roughly 3,000 requests, so keep the concurrency low and be a good
+citizen. It is resumable: `details.json` is written as it goes and rerunning
+only fetches what is missing, so widening the set costs just the new spells.
 
 Descriptions are trimmed to about 500 characters to keep the download
 reasonable on a phone; the Archives entry remains the reference for full text.
