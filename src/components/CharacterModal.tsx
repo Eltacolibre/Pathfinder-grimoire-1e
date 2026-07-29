@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { X, Shield, Wand2, Sparkles, Check, BookOpen } from "lucide-react";
 import { Character, CasterClass, SpellSchool } from "../types";
 import { CASTER_CLASSES } from "../data/classesData";
 import { CLERIC_DOMAINS } from "../data/domainsData";
 import { calculateAbilityModifier } from "../utils/pf1eUtils";
+import { NumberField } from "./NumberField";
 
 interface CharacterModalProps {
   isOpen: boolean;
@@ -48,6 +49,27 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
     existingCharacter?.oppositionSchools || ["Necromancy", "Enchantment"]
   );
 
+  // The modal stays mounted between openings, so the initialisers above only
+  // ever run once — without this, editing a character showed whatever was last
+  // typed (or the defaults) and saving overwrote their name and class.
+  useEffect(() => {
+    if (!isOpen) return;
+    const isCleric = existingCharacter?.casterClass === "cleric";
+    setName(existingCharacter?.name ?? "Ezren the Pious");
+    setCasterClass(existingCharacter?.casterClass ?? "cleric");
+    setLevel(existingCharacter?.level ?? 5);
+    setAbilityScore(existingCharacter?.abilityScore ?? 18);
+    setSpecialization(
+      existingCharacter?.specialization ?? (isCleric ? "Sun Domain" : "Evocation")
+    );
+    setSecondarySpecialization(
+      existingCharacter?.secondarySpecialization ?? (isCleric ? "Fire Domain" : "")
+    );
+    setOppositionSchools(
+      existingCharacter?.oppositionSchools ?? ["Necromancy", "Enchantment"]
+    );
+  }, [isOpen, existingCharacter]);
+
   if (!isOpen) return null;
 
   const currentClassDef = CASTER_CLASSES[casterClass];
@@ -73,7 +95,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
       casterClass,
       level: Math.min(Math.max(level, 1), 20),
       primaryAbility: currentClassDef.primaryAbility,
-      abilityScore: Math.min(Math.max(abilityScore, 1), 40),
+      abilityScore: Math.min(Math.max(abilityScore, 1), 99),
       specialization: specialization.trim(),
       secondarySpecialization: casterClass === "cleric" ? secondarySpecialization.trim() : undefined,
       oppositionSchools: currentClassDef.allowsOppositionSchools ? oppositionSchools : [],
@@ -172,12 +194,11 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
               <label className="block text-[10px] font-bold uppercase text-[#d4af37] tracking-wider mb-1">
                 Class Level (1 - 20)
               </label>
-              <input
-                type="number"
+              <NumberField
                 min={1}
                 max={20}
                 value={level}
-                onChange={(e) => setLevel(parseInt(e.target.value) || 1)}
+                onChange={setLevel}
                 className="w-full bg-[#1c1714] border border-[#3d2e24] rounded-sm px-3 py-2 text-[#d4c5b3] focus:outline-none focus:border-[#d4af37] text-sm font-mono"
               />
             </div>
@@ -186,12 +207,11 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
               <label className="block text-[10px] font-bold uppercase text-[#d4af37] tracking-wider mb-1">
                 {currentClassDef.primaryAbility.toUpperCase()} Score
               </label>
-              <input
-                type="number"
+              <NumberField
                 min={1}
-                max={40}
+                max={99}
                 value={abilityScore}
-                onChange={(e) => setAbilityScore(parseInt(e.target.value) || 10)}
+                onChange={setAbilityScore}
                 className="w-full bg-[#1c1714] border border-[#3d2e24] rounded-sm px-3 py-2 text-[#d4c5b3] focus:outline-none focus:border-[#d4af37] text-sm font-mono"
               />
             </div>
