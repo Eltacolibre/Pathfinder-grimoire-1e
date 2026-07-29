@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #0c0908;
+    color: #d4c5b3;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+  }
+
+  h1, h2, h3, .font-serif {
+    font-family: 'Cinzel', 'Cormorant Garamond', Georgia, serif;
+  }
+}
+
+/* Custom scrollbar matching dark leather & antique gold aesthetic */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0c0908;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3d2e24;
+  border-radius: 3px;
+  border: 1px solid #1a1614;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #d4af37;
+}
+
+/* Grimoire Glows and Borders */
+.grimoire-border {
+  border: 1px solid #3d2e24;
+}
+
+.grimoire-gold-border {
+  border: 1px solid #d4af37;
+}
+
+.grimoire-gold-glow {
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.25);
+}
+
+.grimoire-[#d4af37] {
+  color: #d4af37;
+}

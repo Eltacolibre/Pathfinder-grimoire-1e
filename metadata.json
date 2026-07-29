@@ -1,0 +1,6 @@
+{
+  "name": "Pathfinder 1e Grimoire & Spellbook Manager",
+  "description": "Complete Pathfinder 1st Edition spellbook manager, daily preparation & spells known tracker, filtering engine, and PDF spell sheet exporter.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
