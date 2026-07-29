@@ -122,11 +122,16 @@ for (const m of existingSrc.matchAll(/\{\s*\n\s*id: "([^"]+)",\s*\n\s*name: "([^
 
 const spells = [];
 const skipped = [];
+const noClass = [];
 
 for (const rec of Object.values(details)) {
   if (rec.failed) { skipped.push(`${rec.name}: fetch failed`); continue; }
+  // A handful of entries (mostly domain-granted ones like Bolt of Glory, plus
+  // antipaladin/investigator/sahir-afiyun spells) carry no class level on the
+  // Archives at all. Keep them anyway: they stay searchable in the browser, and
+  // a domain can still grant one at the level its own table specifies.
   const classes = parseClasses(rec.levelLine);
-  if (Object.keys(classes).length === 0) { skipped.push(`${rec.name}: no known class`); continue; }
+  if (Object.keys(classes).length === 0) noClass.push(rec.name);
 
   const id = slug(rec.name);
   const keep = curated.get(id);
@@ -166,6 +171,7 @@ writeFileSync(`${REPO}/public/spells.json`, JSON.stringify(compact));
 
 console.log(`wrote ${spells.length} spells to public/spells.json`);
 if (skipped.length) console.log(`skipped ${skipped.length}, e.g.`, skipped.slice(0, 5));
+console.log(`kept without a class level: ${noClass.length}`, noClass.slice(0, 20));
 const byClass = {};
 for (const s of spells) for (const c of Object.keys(s.classes)) byClass[c] = (byClass[c] || 0) + 1;
 console.log("per class:", byClass);
