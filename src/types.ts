@@ -24,6 +24,7 @@ export type CasterClass =
   | "inquisitor"
   | "paladin"
   | "ranger"
+  | "warpriest"
   | "psychic"
   | "shaman"
   | "summoner"
@@ -124,6 +125,12 @@ export interface ClassDefinition {
   hasSpecialtySlot: boolean; // e.g. Wizard school slot / Cleric domain slot
   specialtySlotLabel?: string; // "Specialty School" / "Domain"
   allowsOppositionSchools: boolean;
+  /**
+   * True for prepared divine casters (Cleric, Druid, Paladin, Ranger,
+   * Warpriest) who may prepare any spell on their class list, so there is no
+   * separate "spells known" step for them.
+   */
+  knowsEntireSpellList: boolean;
   spellbookType: "Spellbook" | "Formula Book" | "Known Spells" | "Divine Prayer List";
   description: string;
 }

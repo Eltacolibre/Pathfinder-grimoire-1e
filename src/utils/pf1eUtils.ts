@@ -12,6 +12,28 @@ export function calculateAbilityModifier(score: number): number {
 }
 
 /**
+ * Every spell this character may prepare or cast today.
+ *
+ * Prepared divine casters (Cleric, Druid, Paladin, Ranger, Warpriest) have
+ * access to their whole class list, so there is nothing to "learn" — the class
+ * list itself is their available pool. Everyone else is limited to the spells
+ * recorded in their spellbook, formula book, or spells known.
+ */
+export function getAvailableSpells(character: Character, allSpells: Spell[]): Spell[] {
+  const classDef = CASTER_CLASSES[character.casterClass];
+  if (classDef?.knowsEntireSpellList) {
+    return allSpells.filter((s) => s.classes[character.casterClass] !== undefined);
+  }
+  const known = new Set(character.knownSpellIds);
+  return allSpells.filter((s) => known.has(s.id));
+}
+
+/** True when the class has no separate "spells known" step. */
+export function knowsEntireSpellList(character: Character): boolean {
+  return CASTER_CLASSES[character.casterClass]?.knowsEntireSpellList ?? false;
+}
+
+/**
  * Standard PF1e Bonus Spells per Day formula based on Ability Modifier M and Spell Level L.
  * If M < L, returns 0.
  * Otherwise returns Math.floor((M - L) / 4) + 1

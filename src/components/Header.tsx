@@ -17,6 +17,11 @@ import { Character } from "../types";
 import { CASTER_CLASSES } from "../data/classesData";
 import { calculateAbilityModifier } from "../utils/pf1eUtils";
 
+// Shared shape for the quick-action buttons. On phones they share the row
+// evenly (`flex-1`) so icons line up; from `lg` they size to their labels.
+const ACTION_BTN =
+  "flex flex-1 lg:flex-none items-center justify-center gap-1.5 px-2 sm:px-3 py-2 lg:py-1.5 border text-xs font-bold uppercase tracking-wider transition";
+
 interface HeaderProps {
   characters: Character[];
   activeCharacter: Character | null;
@@ -57,11 +62,11 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="bg-[#1a1614] border-b border-[#3d2e24] text-[#d4c5b3] sticky top-0 z-30 shadow-xl backdrop-blur-md">
       {/* Top Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5 flex flex-col lg:flex-row lg:flex-wrap lg:items-center justify-between gap-2.5 sm:gap-4">
         {/* Brand & Logo */}
-        <div className="flex items-center gap-4">
-          <div className="w-11 h-11 bg-[#2d241c] border border-[#d4af37] rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.3)] shrink-0">
-            <BookOpen className="w-5 h-5 text-[#d4af37]" />
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="w-9 h-9 sm:w-11 sm:h-11 bg-[#2d241c] border border-[#d4af37] rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.3)] shrink-0">
+            <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-[#d4af37]" />
           </div>
           <div>
             <h1 className="font-serif text-lg sm:text-xl font-bold tracking-widest text-[#e2d5c3] uppercase flex items-center gap-2">
@@ -73,10 +78,13 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Character Selector & Quick Actions */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        {/* Character Selector & Quick Actions.
+            On phones this becomes a full-width picker with one tidy row of
+            equal icon buttons beneath, rather than buttons of mixed widths
+            wrapping into ragged rows. */}
+        <div className="flex flex-col lg:flex-row lg:flex-wrap lg:items-center gap-2 lg:gap-3">
           {/* Character Dropdown */}
-          <div className="flex items-center gap-1 bg-[#14100e] border border-[#3d2e24] rounded-sm p-1">
+          <div className="flex items-center gap-1 bg-[#14100e] border border-[#3d2e24] rounded-sm p-1 w-full lg:w-auto">
             <select
               value={activeCharacter?.id || ""}
               onChange={(e) => {
@@ -86,7 +94,7 @@ export const Header: React.FC<HeaderProps> = ({
                   onSelectCharacter(e.target.value);
                 }
               }}
-              className="bg-transparent text-[#e2d5c3] font-serif text-xs font-semibold px-2 py-1 rounded focus:outline-none cursor-pointer"
+              className="flex-1 min-w-0 bg-transparent text-[#e2d5c3] font-serif text-xs font-semibold px-2 py-1 rounded focus:outline-none cursor-pointer"
             >
               {characters.map((c) => (
                 <option key={c.id} value={c.id} className="bg-[#1a1614] text-[#d4c5b3]">
@@ -118,73 +126,77 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* Action Buttons */}
-          <button
-            onClick={onOpenNewCharacter}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-[#3d2e24] bg-[#2d241c] text-[#d4c5b3] hover:text-[#d4af37] hover:border-[#d4af37]/50 text-xs font-bold uppercase tracking-wider transition"
-          >
-            <PlusCircle className="w-3.5 h-3.5 text-[#d4af37]" />
-            <span className="hidden md:inline">New Hero</span>
-          </button>
-
-          {activeCharacter && (
+          {/* Action Buttons. `lg:contents` dissolves this wrapper on desktop so
+              the buttons rejoin the parent row exactly as before. */}
+          <div className="flex items-stretch gap-1.5 lg:contents">
             <button
-              onClick={onExportPDF}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 border border-[#d4af37] bg-[#2d241c] text-[#d4af37] text-xs font-bold uppercase tracking-widest hover:bg-[#d4af37] hover:text-[#1a1614] transition-colors shadow-sm"
-              title="Export Printable PDF Spell Sheet"
+              onClick={onOpenNewCharacter}
+              className={`${ACTION_BTN} border-[#3d2e24] bg-[#2d241c] text-[#d4c5b3] hover:text-[#d4af37] hover:border-[#d4af37]/50`}
+              title="Create a new character"
             >
-              <Download className="w-3.5 h-3.5" />
-              <span>Export PDF</span>
+              <PlusCircle className="w-3.5 h-3.5 shrink-0 text-[#d4af37]" />
+              <span className="hidden md:inline">New Hero</span>
             </button>
-          )}
 
-          <button
-            onClick={onOpenCustomSpell}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-[#3d2e24] bg-[#2d241c] text-[#d4c5b3] hover:text-[#d4af37] text-xs font-bold uppercase tracking-wider transition"
-            title="Create Custom / Homebrew Spell"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-[#d4af37]" />
-            <span className="hidden lg:inline">+ Homebrew</span>
-          </button>
+            {activeCharacter && (
+              <button
+                onClick={onExportPDF}
+                className={`${ACTION_BTN} border-[#d4af37] bg-[#2d241c] text-[#d4af37] hover:bg-[#d4af37] hover:text-[#1a1614]`}
+                title="Export Printable PDF Spell Sheet"
+              >
+                <Download className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden sm:inline">Export PDF</span>
+              </button>
+            )}
 
-          {activeCharacter && (
             <button
-              onClick={onOpenCalculator}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-[#3d2e24] bg-[#2d241c] text-[#d4c5b3] hover:text-[#d4af37] hover:border-[#d4af37]/60 text-xs font-bold uppercase tracking-wider transition"
-              title="Open Pathfinder 1e Tactical Concentration & Save DC Calculator"
+              onClick={onOpenCustomSpell}
+              className={`${ACTION_BTN} border-[#3d2e24] bg-[#2d241c] text-[#d4c5b3] hover:text-[#d4af37]`}
+              title="Create Custom / Homebrew Spell"
             >
-              <Dices className="w-3.5 h-3.5 text-[#d4af37]" />
-              <span className="hidden xl:inline">Tactical Calc</span>
+              <Sparkles className="w-3.5 h-3.5 shrink-0 text-[#d4af37]" />
+              <span className="hidden lg:inline">+ Homebrew</span>
             </button>
-          )}
 
-          <button
-            onClick={onOpenAiAssistant}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-[#d4af37]/60 bg-[#2d241c] text-[#d4af37] text-xs font-bold uppercase tracking-wider hover:bg-[#d4af37]/20 transition shadow-[0_0_10px_rgba(212,175,55,0.15)]"
-            title="Ask AI Rules Consultant & Spell Recommender"
-          >
-            <Bot className="w-3.5 h-3.5 text-[#d4af37]" />
-            <span>AI Lore Advisor</span>
-          </button>
+            {activeCharacter && (
+              <button
+                onClick={onOpenCalculator}
+                className={`${ACTION_BTN} border-[#3d2e24] bg-[#2d241c] text-[#d4c5b3] hover:text-[#d4af37] hover:border-[#d4af37]/60`}
+                title="Open Pathfinder 1e Tactical Concentration & Save DC Calculator"
+              >
+                <Dices className="w-3.5 h-3.5 shrink-0 text-[#d4af37]" />
+                <span className="hidden xl:inline">Tactical Calc</span>
+              </button>
+            )}
 
-          <a
-            href="https://ko-fi.com/bagquest"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-[#3d2e24] bg-[#2d241c] text-[#d4c5b3] hover:text-[#d4af37] hover:border-[#d4af37]/60 text-xs font-bold uppercase tracking-wider transition"
-            title="This grimoire is free — tip the scribe on Ko-fi"
-          >
-            <Coffee className="w-3.5 h-3.5 text-[#d4af37]" />
-            <span className="hidden sm:inline">Tip Jar</span>
-          </a>
+            <button
+              onClick={onOpenAiAssistant}
+              className={`${ACTION_BTN} border-[#d4af37]/60 bg-[#2d241c] text-[#d4af37] hover:bg-[#d4af37]/20 shadow-[0_0_10px_rgba(212,175,55,0.15)]`}
+              title="Ask AI Rules Consultant & Spell Recommender"
+            >
+              <Bot className="w-3.5 h-3.5 shrink-0 text-[#d4af37]" />
+              <span className="hidden sm:inline">AI Lore Advisor</span>
+            </button>
+
+            <a
+              href="https://ko-fi.com/bagquest"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${ACTION_BTN} border-[#3d2e24] bg-[#2d241c] text-[#d4c5b3] hover:text-[#d4af37] hover:border-[#d4af37]/60`}
+              title="This grimoire is free — tip the scribe on Ko-fi"
+            >
+              <Coffee className="w-3.5 h-3.5 shrink-0 text-[#d4af37]" />
+              <span className="hidden sm:inline">Tip Jar</span>
+            </a>
+          </div>
         </div>
       </div>
 
       {/* Active Character Subbar */}
       {activeCharacter && activeClassDef && (
-        <div className="bg-[#14100e] border-t border-[#3d2e24] py-2 px-4 sm:px-6">
-          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between text-xs text-[#8c7a65] gap-2">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <div className="bg-[#14100e] border-t border-[#3d2e24] py-2 px-3 sm:px-6">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between text-xs text-[#8c7a65] gap-x-4 gap-y-1.5">
+            <div className="flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1">
               <span className="font-serif font-bold text-[#e2d5c3] text-sm tracking-wide">
                 {activeCharacter.name}
               </span>
@@ -205,9 +217,11 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
 
-            <div className="text-[#8c7a65] flex items-center gap-4 text-[11px] uppercase tracking-wider">
+            <div className="text-[#8c7a65] flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1 text-[11px] uppercase tracking-wider">
               <span>Casting: <strong className="text-[#d4c5b3] font-serif capitalize">{activeClassDef.castingType.replace("-", " ")}</strong></span>
-              <span>Known: <strong className="text-[#d4af37] font-mono">{activeCharacter.knownSpellIds.length}</strong></span>
+              {!activeClassDef.knowsEntireSpellList && (
+                <span>Known: <strong className="text-[#d4af37] font-mono">{activeCharacter.knownSpellIds.length}</strong></span>
+              )}
               <span>Prepared: <strong className="text-[#d4af37] font-mono">{activeCharacter.preparedSpells.length}</strong></span>
             </div>
           </div>
@@ -215,42 +229,50 @@ export const Header: React.FC<HeaderProps> = ({
       )}
 
       {/* Navigation Tabs */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <nav className="flex space-x-2 sm:space-x-6 border-t border-[#3d2e24] pt-2 pb-0.5">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6">
+        {/* Scrollable on phones so the third tab is reachable instead of
+            being clipped off the edge. */}
+        <nav className="flex gap-0.5 sm:gap-6 border-t border-[#3d2e24] pt-2 pb-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <button
             onClick={() => onChangeTab("daily")}
-            className={`flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-serif font-bold uppercase tracking-widest border-b-2 transition ${
+            className={`flex shrink-0 items-center gap-1 sm:gap-2 whitespace-nowrap px-1.5 sm:px-4 py-2 text-[11px] sm:text-sm font-serif font-bold uppercase tracking-wider sm:tracking-widest border-b-2 transition ${
               activeTab === "daily"
                 ? "border-[#d4af37] text-[#d4af37] bg-[#2d241c]/40"
                 : "border-transparent text-[#8c7a65] hover:text-[#d4c5b3] hover:border-[#3d2e24]"
             }`}
           >
-            <CheckCircle2 className="w-4 h-4 text-[#d4af37]" />
-            <span>Daily Preparation & Slots</span>
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-[#d4af37]" />
+            <span className="sm:hidden">Prepare</span>
+            <span className="hidden sm:inline">Daily Preparation &amp; Slots</span>
           </button>
 
           <button
             onClick={() => onChangeTab("spellbook")}
-            className={`flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-serif font-bold uppercase tracking-widest border-b-2 transition ${
+            className={`flex shrink-0 items-center gap-1 sm:gap-2 whitespace-nowrap px-1.5 sm:px-4 py-2 text-[11px] sm:text-sm font-serif font-bold uppercase tracking-wider sm:tracking-widest border-b-2 transition ${
               activeTab === "spellbook"
                 ? "border-[#d4af37] text-[#d4af37] bg-[#2d241c]/40"
                 : "border-transparent text-[#8c7a65] hover:text-[#d4c5b3] hover:border-[#3d2e24]"
             }`}
           >
-            <BookOpen className="w-4 h-4 text-[#d4af37]" />
-            <span>Grimoire ({activeCharacter?.knownSpellIds.length || 0})</span>
+            <BookOpen className="w-4 h-4 shrink-0 text-[#d4af37]" />
+            <span>
+              {activeClassDef?.knowsEntireSpellList
+                ? "Spell List"
+                : `Grimoire${activeCharacter ? ` (${activeCharacter.knownSpellIds.length})` : ""}`}
+            </span>
           </button>
 
           <button
             onClick={() => onChangeTab("database")}
-            className={`flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-serif font-bold uppercase tracking-widest border-b-2 transition ${
+            className={`flex shrink-0 items-center gap-1 sm:gap-2 whitespace-nowrap px-1.5 sm:px-4 py-2 text-[11px] sm:text-sm font-serif font-bold uppercase tracking-wider sm:tracking-widest border-b-2 transition ${
               activeTab === "database"
                 ? "border-[#d4af37] text-[#d4af37] bg-[#2d241c]/40"
                 : "border-transparent text-[#8c7a65] hover:text-[#d4c5b3] hover:border-[#3d2e24]"
             }`}
           >
-            <Search className="w-4 h-4 text-[#d4af37]" />
-            <span>Paizo Archives</span>
+            <Search className="w-4 h-4 shrink-0 text-[#d4af37]" />
+            <span className="sm:hidden">Archives</span>
+            <span className="hidden sm:inline">Paizo Archives</span>
           </button>
         </nav>
       </div>

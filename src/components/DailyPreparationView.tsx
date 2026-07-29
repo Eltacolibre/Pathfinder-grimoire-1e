@@ -24,6 +24,7 @@ import {
   calculateSaveDC,
   getCharacterSlotsBreakdown,
   calculateAbilityModifier,
+  getAvailableSpells,
 } from "../utils/pf1eUtils";
 
 interface DailyPreparationViewProps {
@@ -77,10 +78,9 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
     (d) => d.name.toLowerCase() === secondaryDomainName.toLowerCase() || d.id === secondaryDomainName.toLowerCase()
   );
 
-  // Filter known spells available for character
-  const knownSpells = character.knownSpellIds
-    .map((id) => spellMap.get(id))
-    .filter((s): s is Spell => s !== undefined);
+  // Spells this character may prepare: the whole class list for Clerics,
+  // Druids, Paladins, Rangers and Warpriests; the recorded book otherwise.
+  const knownSpells = getAvailableSpells(character, allSpells);
 
   // Helper to check if a spell belongs to primary or secondary domain
   const getSpellDomainTag = (spellName: string, level: number): string | null => {
@@ -574,7 +574,9 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-[10px] font-bold uppercase text-[#d4af37] tracking-wider">
-                    Select Spell from Grimoire
+                    {classDef.knowsEntireSpellList
+                      ? `Select Spell from the ${classDef.name} List`
+                      : "Select Spell from Grimoire"}
                   </label>
 
                   {isCleric && (primaryDomainObj || secondaryDomainObj) && (

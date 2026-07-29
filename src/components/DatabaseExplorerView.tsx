@@ -3,7 +3,7 @@ import { Search, Sparkles, BookOpen, Layers } from "lucide-react";
 import { Character, Spell, FilterOptions } from "../types";
 import { SpellFilterBar } from "./SpellFilterBar";
 import { SpellCard } from "./SpellCard";
-import { filterSpellsList } from "../utils/pf1eUtils";
+import { filterSpellsList, knowsEntireSpellList } from "../utils/pf1eUtils";
 
 interface DatabaseExplorerViewProps {
   character: Character | null;
@@ -78,13 +78,21 @@ export const DatabaseExplorerView: React.FC<DatabaseExplorerViewProps> = ({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredSpells.map((spell) => {
-            const isInBook = character ? character.knownSpellIds.includes(spell.id) : false;
+            // Full-list casters have every spell on their list available, so
+            // treat those as already "in book" and hide the add/remove toggle.
+            const fullListCaster = character ? knowsEntireSpellList(character) : false;
+            const isInBook = !character
+              ? false
+              : fullListCaster
+                ? spell.classes[character.casterClass] !== undefined
+                : character.knownSpellIds.includes(spell.id);
             return (
               <SpellCard
                 key={spell.id}
                 spell={spell}
                 character={character}
                 isInSpellbook={isInBook}
+                canToggleSpellbook={!fullListCaster}
                 onToggleSpellbook={onToggleSpellbook}
                 onOpenDetails={onOpenSpellDetails}
                 onPrepareSpell={onPrepareSpell}

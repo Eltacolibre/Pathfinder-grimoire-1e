@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Coffee } from "lucide-react";
+import { Coffee, Loader2 } from "lucide-react";
 import { Header } from "./components/Header";
 import { DailyPreparationView } from "./components/DailyPreparationView";
 import { SpellbookView } from "./components/SpellbookView";
@@ -10,7 +10,7 @@ import { AiAssistantModal } from "./components/AiAssistantModal";
 import { CustomSpellModal } from "./components/CustomSpellModal";
 import { CasterCalculatorModal } from "./components/CasterCalculatorModal";
 import { Character, Spell } from "./types";
-import { INITIAL_PAIZO_SPELLS } from "./data/spellsData";
+import { SEED_SPELLS, loadSpellLibrary } from "./utils/spellLibrary";
 import {
   loadStoredCharacters,
   saveStoredCharacters,
@@ -145,11 +145,25 @@ const PRESET_CHARACTERS: Character[] = [
 ];
 
 export default function App() {
-  // Spells database (Paizo + Custom)
+  // Spells database (Paizo + Custom). Starts on the bundled seed so the app
+  // renders immediately, then swaps in the full library once it downloads.
   const [allSpells, setAllSpells] = useState<Spell[]>(() => {
     const customSpells = loadStoredCustomSpells();
-    return [...INITIAL_PAIZO_SPELLS, ...customSpells];
+    return [...SEED_SPELLS, ...customSpells];
   });
+  const [libraryLoading, setLibraryLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadSpellLibrary().then((library) => {
+      if (cancelled) return;
+      setAllSpells([...library, ...loadStoredCustomSpells()]);
+      setLibraryLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Characters List
   const [characters, setCharacters] = useState<Character[]>(() => {
@@ -306,7 +320,14 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {libraryLoading && (
+          <div className="mb-4 flex items-center gap-2 rounded-sm border border-[#3d2e24] bg-[#14100e] px-3 py-2 text-[11px] font-serif italic text-[#8c7a65]">
+            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-[#d4af37]" />
+            <span>Loading the full Paizo spell library…</span>
+          </div>
+        )}
+
         {activeTab === "daily" && activeCharacter && (
           <DailyPreparationView
             character={activeCharacter}
