@@ -2,7 +2,7 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 
 const DIR = new URL(".", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
-const CLASSES = ["Cleric", "Druid", "Paladin", "Ranger", "Warpriest"];
+const CLASSES = ["Cleric", "Druid", "Paladin", "Ranger", "Warpriest", "Shaman"];
 
 const decode = (s) =>
   s

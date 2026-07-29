@@ -181,9 +181,9 @@ export const CASTER_CLASSES: Record<CasterClass, ClassDefinition> = {
     hasSpecialtySlot: true,
     specialtySlotLabel: "Spirit Slot",
     allowsOppositionSchools: false,
-    knowsEntireSpellList: false,
+    knowsEntireSpellList: true,
     spellbookType: "Divine Prayer List",
-    description: "Channels nature spirits and spirit animal to prepare level 0-9 divine spells daily.",
+    description: "Channels nature spirits and spirit animal to prepare level 0-9 divine spells daily from the entire Shaman list, plus a spirit slot per level.",
   },
   summoner: {
     id: "summoner",
