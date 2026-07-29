@@ -9,6 +9,7 @@ import { SpellDetailModal } from "./components/SpellDetailModal";
 import { AiAssistantModal } from "./components/AiAssistantModal";
 import { CustomSpellModal } from "./components/CustomSpellModal";
 import { CasterCalculatorModal } from "./components/CasterCalculatorModal";
+import { ExportModal } from "./components/ExportModal";
 import { Character, Spell } from "./types";
 import { SEED_SPELLS, loadSpellLibrary } from "./utils/spellLibrary";
 import {
@@ -18,7 +19,9 @@ import {
   saveActiveCharacterId,
   loadStoredCustomSpells,
   saveStoredCustomSpells,
+  autoInscribeClassSpells,
 } from "./utils/pf1eUtils";
+import { FULL_LIST_CLASSES } from "./data/classesData";
 import { exportCharacterSpellSheetPDF } from "./utils/pdfExport";
 
 // Default Preset Heroes for fast onboarding
@@ -153,18 +156,6 @@ export default function App() {
   });
   const [libraryLoading, setLibraryLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
-    loadSpellLibrary().then((library) => {
-      if (cancelled) return;
-      setAllSpells([...library, ...loadStoredCustomSpells()]);
-      setLibraryLoading(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   // Characters List
   const [characters, setCharacters] = useState<Character[]>(() => {
     const stored = loadStoredCharacters();
@@ -190,6 +181,30 @@ export default function App() {
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isCustomSpellModalOpen, setIsCustomSpellModalOpen] = useState(false);
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  // Pull in the full spell library, then top up anyone who knows their whole
+  // class list. Auto-inscribe runs against whatever is loaded at the time, so
+  // a Cleric created before this resolves would otherwise be stuck with just
+  // the seed spells.
+  useEffect(() => {
+    let cancelled = false;
+    loadSpellLibrary().then((library) => {
+      if (cancelled) return;
+      setAllSpells([...library, ...loadStoredCustomSpells()]);
+      setCharacters((prev) =>
+        prev.map((c) =>
+          FULL_LIST_CLASSES.includes(c.casterClass)
+            ? autoInscribeClassSpells(c, c.casterClass, library)
+            : c,
+        ),
+      );
+      setLibraryLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Sync state to local storage
   useEffect(() => {
@@ -203,13 +218,18 @@ export default function App() {
   const activeCharacter = characters.find((c) => c.id === activeCharacterId) || characters[0] || null;
 
   // Character Management Handlers
-  const handleSaveCharacter = (char: Character) => {
+  const handleSaveCharacter = (char: Character, autoInscribe?: boolean) => {
+    let finalChar = char;
+    if (autoInscribe && FULL_LIST_CLASSES.includes(char.casterClass)) {
+      finalChar = autoInscribeClassSpells(char, char.casterClass, allSpells);
+    }
+
     const exists = characters.some((c) => c.id === char.id);
     if (exists) {
-      setCharacters(characters.map((c) => (c.id === char.id ? char : c)));
+      setCharacters(characters.map((c) => (c.id === finalChar.id ? finalChar : c)));
     } else {
-      setCharacters([char, ...characters]);
-      setActiveCharacterId(char.id);
+      setCharacters([finalChar, ...characters]);
+      setActiveCharacterId(finalChar.id);
     }
   };
 
@@ -312,6 +332,7 @@ export default function App() {
         }}
         onDeleteCharacter={handleDeleteCharacter}
         onExportPDF={handleExportPDF}
+        onOpenExportModal={() => setIsExportModalOpen(true)}
         onOpenAiAssistant={() => setIsAiModalOpen(true)}
         onOpenCustomSpell={() => setIsCustomSpellModalOpen(true)}
         onOpenCalculator={() => setIsCalculatorOpen(true)}
@@ -458,6 +479,17 @@ export default function App() {
           onClose={() => setIsCalculatorOpen(false)}
         />
       )}
+
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        activeCharacter={activeCharacter}
+        characters={characters}
+        onExportPDF={handleExportPDF}
+        onImportCharacter={(importedChar) => {
+          handleSaveCharacter(importedChar);
+        }}
+      />
     </div>
   );
 }

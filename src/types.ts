@@ -88,9 +88,24 @@ export interface PreparedSpellInstance {
   customNote?: string;
 }
 
+export interface CharacterClassEntry {
+  id: string;
+  casterClass: CasterClass;
+  level: number; // 1-20
+  primaryAbility: "int" | "wis" | "cha";
+  abilityScore: number;
+  specialization?: string; // e.g. Primary Domain / School / Bloodline
+  secondarySpecialization?: string; // e.g. Secondary Domain for Cleric
+  oppositionSchools?: SpellSchool[];
+  preparedSpells: PreparedSpellInstance[];
+  spontaneousSlotsUsed: Record<number, number>;
+}
+
 export interface Character {
   id: string;
   name: string;
+
+  // Primary class fields (also acts as class #0 for backward compatibility)
   casterClass: CasterClass;
   level: number; // 1-20
   primaryAbility: "int" | "wis" | "cha";
@@ -98,9 +113,14 @@ export interface Character {
   specialization?: string; // Primary domain (Cleric) / Arcane School (Wizard) / Bloodline / Patron
   secondarySpecialization?: string; // Secondary domain (Cleric)
   oppositionSchools?: SpellSchool[]; // e.g. ["Necromancy", "Enchantment"]
-  knownSpellIds: string[]; // Spells in Spellbook / Formulas / Known Spells
-  preparedSpells: PreparedSpellInstance[]; // For prepared casters or Arcanist prepared list
+  preparedSpells: PreparedSpellInstance[]; // Prepared list for primary class
   spontaneousSlotsUsed: Record<number, number>; // level -> count used today
+
+  // Multiclassing support
+  multiclassEntries?: CharacterClassEntry[]; // Additional classes (e.g. Wizard Lvl 3)
+  activeClassIndex?: number; // Index of selected class currently active in preparation tab (0 = primary class, 1+ = multiclass entries)
+
+  knownSpellIds: string[]; // Spells in Spellbook / Formulas / Known Spells across all classes
   notes?: string;
   createdAt: number;
 }
@@ -125,12 +145,6 @@ export interface ClassDefinition {
   hasSpecialtySlot: boolean; // e.g. Wizard school slot / Cleric domain slot
   specialtySlotLabel?: string; // "Specialty School" / "Domain"
   allowsOppositionSchools: boolean;
-  /**
-   * True for prepared divine casters (Cleric, Druid, Paladin, Ranger,
-   * Warpriest) who may prepare any spell on their class list, so there is no
-   * separate "spells known" step for them.
-   */
-  knowsEntireSpellList: boolean;
   spellbookType: "Spellbook" | "Formula Book" | "Known Spells" | "Divine Prayer List";
   description: string;
 }

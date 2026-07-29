@@ -11,6 +11,7 @@ import {
   X,
   AlertCircle,
   Zap,
+  Layers,
 } from "lucide-react";
 import {
   Character,
@@ -22,9 +23,10 @@ import { CASTER_CLASSES } from "../data/classesData";
 import { CLERIC_DOMAINS } from "../data/domainsData";
 import {
   calculateSaveDC,
-  getCharacterSlotsBreakdown,
+  getCharacterSlotsBreakdownForClass,
   calculateAbilityModifier,
-  getAvailableSpells,
+  getAllCharacterClasses,
+  getActiveClassEntry,
 } from "../utils/pf1eUtils";
 
 interface DailyPreparationViewProps {
@@ -53,8 +55,11 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
   onUpdateCharacter,
   onOpenSpellDetails,
 }) => {
-  const classDef = CASTER_CLASSES[character.casterClass] || CASTER_CLASSES.wizard;
-  const slotsBreakdown = getCharacterSlotsBreakdown(character);
+  const allClassEntries = getAllCharacterClasses(character);
+  const activeClass = getActiveClassEntry(character);
+  const activeClassIdx = character.activeClassIndex ?? 0;
+  const classDef = CASTER_CLASSES[activeClass.casterClass] || CASTER_CLASSES.wizard;
+  const slotsBreakdown = getCharacterSlotsBreakdownForClass(activeClass);
   const spellMap = new Map<string, Spell>(allSpells.map((s) => [s.id, s]));
 
   // Modal for selecting spell to prepare into a slot
@@ -65,10 +70,10 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
   const [domainFilter, setDomainFilter] = useState<"all" | "primary" | "secondary">("all");
 
   const isSpontaneous = classDef.castingType.includes("spontaneous");
-  const isCleric = character.casterClass === "cleric";
+  const isCleric = activeClass.casterClass === "cleric";
 
-  const primaryDomainName = character.specialization || "Primary Domain";
-  const secondaryDomainName = character.secondarySpecialization || "Secondary Domain";
+  const primaryDomainName = activeClass.specialization || "Primary Domain";
+  const secondaryDomainName = activeClass.secondarySpecialization || "Secondary Domain";
 
   // Domain Objects lookup
   const primaryDomainObj = CLERIC_DOMAINS.find(
@@ -78,9 +83,10 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
     (d) => d.name.toLowerCase() === secondaryDomainName.toLowerCase() || d.id === secondaryDomainName.toLowerCase()
   );
 
-  // Spells this character may prepare: the whole class list for Clerics,
-  // Druids, Paladins, Rangers and Warpriests; the recorded book otherwise.
-  const knownSpells = getAvailableSpells(character, allSpells);
+  // Filter known spells available for character
+  const knownSpells = character.knownSpellIds
+    .map((id) => spellMap.get(id))
+    .filter((s): s is Spell => s !== undefined);
 
   // Helper to check if a spell belongs to primary or secondary domain
   const getSpellDomainTag = (spellName: string, level: number): string | null => {
@@ -171,7 +177,42 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Multiclass Active Selector Bar (If Multiclassed) */}
+      {allClassEntries.length > 1 && (
+        <div className="bg-[#14100e] border border-[#d4af37]/60 rounded-lg p-3.5 shadow-xl flex items-center gap-3 overflow-x-auto">
+          <div className="flex items-center gap-1.5 text-xs font-serif font-bold text-[#d4af37] uppercase tracking-wider whitespace-nowrap">
+            <Layers className="w-4 h-4 text-[#d4af37]" />
+            <span>Active Class:</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {allClassEntries.map((cls, idx) => {
+              const clsDef = CASTER_CLASSES[cls.casterClass];
+              const isActive = idx === activeClassIdx;
+              const mod = calculateAbilityModifier(cls.abilityScore);
+              const modStr = mod >= 0 ? `+${mod}` : `${mod}`;
+
+              return (
+                <button
+                  key={cls.id + "_" + idx}
+                  onClick={() => onUpdateCharacter({ ...character, activeClassIndex: idx })}
+                  className={`px-3 py-1.5 rounded-sm font-serif text-xs font-bold transition flex items-center gap-2 border whitespace-nowrap ${
+                    isActive
+                      ? "bg-[#2d241c] border-[#d4af37] text-[#d4af37] shadow-[0_0_10px_rgba(212,175,55,0.2)]"
+                      : "bg-[#1c1714] border-[#3d2e24] text-[#8c7a65] hover:text-[#e2d5c3] hover:border-[#8c7a65]"
+                  }`}
+                >
+                  <span>{clsDef.name} (Lvl {cls.level})</span>
+                  <span className="font-mono text-[10px] bg-[#14100e] px-1.5 py-0.5 rounded border border-[#3d2e24] text-[#e2d5c3]">
+                    {clsDef.primaryAbility.toUpperCase()} {cls.abilityScore} ({modStr})
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Rest & Header Actions Bar */}
       <div className="bg-[#14100e] border border-[#3d2e24] rounded-lg p-5 shadow-xl flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -574,9 +615,7 @@ export const DailyPreparationView: React.FC<DailyPreparationViewProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-[10px] font-bold uppercase text-[#d4af37] tracking-wider">
-                    {classDef.knowsEntireSpellList
-                      ? `Select Spell from the ${classDef.name} List`
-                      : "Select Spell from Grimoire"}
+                    Select Spell from Grimoire
                   </label>
 
                   {isCleric && (primaryDomainObj || secondaryDomainObj) && (

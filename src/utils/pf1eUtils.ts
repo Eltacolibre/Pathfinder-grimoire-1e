@@ -1,10 +1,11 @@
-import { Character, CasterClass, Spell } from "../types";
+import { Character, CasterClass, Spell, CharacterClassEntry } from "../types";
 import {
   CASTER_CLASSES,
   PREPARED_9_BASE_SLOTS,
   SPONTANEOUS_9_BASE_SLOTS,
   SLOTS_6_BASE,
   SLOTS_4_BASE,
+  FULL_LIST_CLASSES,
 } from "../data/classesData";
 
 export function calculateAbilityModifier(score: number): number {
@@ -12,25 +13,33 @@ export function calculateAbilityModifier(score: number): number {
 }
 
 /**
- * Every spell this character may prepare or cast today.
- *
- * Prepared divine casters (Cleric, Druid, Paladin, Ranger, Warpriest) have
- * access to their whole class list, so there is nothing to "learn" — the class
- * list itself is their available pool. Everyone else is limited to the spells
- * recorded in their spellbook, formula book, or spells known.
+ * Normalizes a character into a list of all class entries
  */
-export function getAvailableSpells(character: Character, allSpells: Spell[]): Spell[] {
-  const classDef = CASTER_CLASSES[character.casterClass];
-  if (classDef?.knowsEntireSpellList) {
-    return allSpells.filter((s) => s.classes[character.casterClass] !== undefined);
-  }
-  const known = new Set(character.knownSpellIds);
-  return allSpells.filter((s) => known.has(s.id));
+export function getAllCharacterClasses(character: Character): CharacterClassEntry[] {
+  const primaryEntry: CharacterClassEntry = {
+    id: "primary",
+    casterClass: character.casterClass,
+    level: character.level,
+    primaryAbility: character.primaryAbility,
+    abilityScore: character.abilityScore,
+    specialization: character.specialization,
+    secondarySpecialization: character.secondarySpecialization,
+    oppositionSchools: character.oppositionSchools,
+    preparedSpells: character.preparedSpells || [],
+    spontaneousSlotsUsed: character.spontaneousSlotsUsed || {},
+  };
+
+  const multiclass = character.multiclassEntries || [];
+  return [primaryEntry, ...multiclass];
 }
 
-/** True when the class has no separate "spells known" step. */
-export function knowsEntireSpellList(character: Character): boolean {
-  return CASTER_CLASSES[character.casterClass]?.knowsEntireSpellList ?? false;
+/**
+ * Gets the active class entry for a character based on activeClassIndex
+ */
+export function getActiveClassEntry(character: Character): CharacterClassEntry {
+  const classes = getAllCharacterClasses(character);
+  const idx = character.activeClassIndex ?? 0;
+  return classes[idx] || classes[0];
 }
 
 /**
@@ -52,11 +61,11 @@ export interface SlotBreakdown {
   total: number;
 }
 
-export function getCharacterSlotsBreakdown(character: Character): SlotBreakdown[] {
-  const classDef = CASTER_CLASSES[character.casterClass] || CASTER_CLASSES.wizard;
-  const mod = calculateAbilityModifier(character.abilityScore);
+export function getCharacterSlotsBreakdownForClass(classEntry: CharacterClassEntry): SlotBreakdown[] {
+  const classDef = CASTER_CLASSES[classEntry.casterClass] || CASTER_CLASSES.wizard;
+  const mod = calculateAbilityModifier(classEntry.abilityScore);
   const maxLvl = classDef.maxSpellLevel;
-  const level = Math.min(Math.max(character.level, 1), 20);
+  const level = Math.min(Math.max(classEntry.level, 1), 20);
 
   let baseTable: Record<number, number[]>;
   if (maxLvl === 9) {
@@ -76,7 +85,6 @@ export function getCharacterSlotsBreakdown(character: Character): SlotBreakdown[
     const rawBase = levelRow[l] ?? 0;
 
     // Special rule for 4-level casters or classes with 0 base slots prior to high ability bonus
-    // In PF1e, a caster who gets "0" spells of a level can cast spells of that level IF they have bonus spells from high ability score
     const bonus = getBonusSlotsForLevel(mod, l);
 
     // Specialty slot (1 per day per spell level L >= 1 if base > 0 or bonus > 0)
@@ -99,9 +107,29 @@ export function getCharacterSlotsBreakdown(character: Character): SlotBreakdown[
   return result;
 }
 
+export function getCharacterSlotsBreakdown(character: Character): SlotBreakdown[] {
+  const activeClass = getActiveClassEntry(character);
+  return getCharacterSlotsBreakdownForClass(activeClass);
+}
+
 export function calculateSaveDC(character: Character, spellLevel: number): number {
-  const mod = calculateAbilityModifier(character.abilityScore);
+  const activeClass = getActiveClassEntry(character);
+  const mod = calculateAbilityModifier(activeClass.abilityScore);
   return 10 + spellLevel + mod;
+}
+
+/**
+ * Automatically inscribe all spells on a class list into character's known spells
+ */
+export function autoInscribeClassSpells(character: Character, targetClass: CasterClass, allSpells: Spell[]): Character {
+  const classSpells = allSpells.filter((s) => s.classes[targetClass] !== undefined);
+  const newIds = classSpells.map((s) => s.id);
+  const mergedKnown = Array.from(new Set([...character.knownSpellIds, ...newIds]));
+
+  return {
+    ...character,
+    knownSpellIds: mergedKnown,
+  };
 }
 
 // LocalStorage Keys

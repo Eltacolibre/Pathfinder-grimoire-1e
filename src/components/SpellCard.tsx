@@ -11,8 +11,6 @@ interface SpellCardProps {
   onToggleSpellbook: (spellId: string) => void;
   onOpenDetails: (spell: Spell) => void;
   onPrepareSpell?: (spell: Spell) => void;
-  /** False for casters who know their whole class list. */
-  canToggleSpellbook?: boolean;
 }
 
 export const SpellCard: React.FC<SpellCardProps> = ({
@@ -22,7 +20,6 @@ export const SpellCard: React.FC<SpellCardProps> = ({
   onToggleSpellbook,
   onOpenDetails,
   onPrepareSpell,
-  canToggleSpellbook = true,
 }) => {
   const activeClass = character?.casterClass || "wizard";
   const spellLevel = spell.classes[activeClass];
@@ -101,9 +98,7 @@ export const SpellCard: React.FC<SpellCardProps> = ({
 
       {/* Card Footer Actions */}
       <div className="pt-3 border-t border-[#3d2e24] flex items-center justify-between gap-2">
-        {/* Toggle Known / Spellbook — hidden for casters who know their
-            entire class list, since there is nothing to add or remove. */}
-        {canToggleSpellbook ? (
+        {/* Toggle Known / Spellbook */}
         <button
           onClick={() => onToggleSpellbook(spell.id)}
           className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-sm text-[11px] font-bold uppercase tracking-wider border transition ${
@@ -124,11 +119,6 @@ export const SpellCard: React.FC<SpellCardProps> = ({
             </>
           )}
         </button>
-        ) : (
-          <span className="flex-1 text-[11px] font-bold uppercase tracking-wider text-[#8c7a65] font-serif italic">
-            On your class list
-          </span>
-        )}
 
         {/* Prepare Button if character present & spell in book */}
         {character && isInSpellbook && onPrepareSpell && (

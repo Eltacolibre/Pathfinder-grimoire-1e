@@ -116,9 +116,7 @@ export const SpellDetailModal: React.FC<SpellDetailModalProps> = ({
             </div>
             {!spell.isCustom && (
               <p className="mt-3 text-[11px] text-[#8c7a65] font-serif italic">
-                {spell.description.trimEnd().endsWith("[…]")
-                  ? "This entry is abridged. "
-                  : ""}
+                {spell.description.trimEnd().endsWith("[…]") ? "This entry is abridged. " : ""}
                 <a
                   href={`https://www.aonprd.com/SpellDisplay.aspx?ItemName=${encodeURIComponent(spell.name)}`}
                   target="_blank"

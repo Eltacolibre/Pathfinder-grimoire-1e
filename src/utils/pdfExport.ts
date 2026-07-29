@@ -1,11 +1,10 @@
 import jsPDF from "jspdf";
 import { Character, Spell } from "../types";
-import { CASTER_CLASSES } from "../data/classesData";
+import { CASTER_CLASSES, FULL_LIST_CLASSES } from "../data/classesData";
 import {
   calculateAbilityModifier,
   calculateSaveDC,
   getCharacterSlotsBreakdown,
-  knowsEntireSpellList,
 } from "./pf1eUtils";
 
 export function exportCharacterSpellSheetPDF(character: Character, allSpells: Spell[]) {
@@ -173,9 +172,9 @@ export function exportCharacterSpellSheetPDF(character: Character, allSpells: Sp
     });
   } else {
     // If no daily prepared spells yet, list Known Spells. Casters who know
-    // their entire class list are skipped here — dumping every cleric spell
-    // would run to dozens of pages and tell the player nothing.
-    const knownSpells = knowsEntireSpellList(character)
+    // their entire class list are skipped here — a Cleric's inscribed list is
+    // over a thousand spells, which would run to dozens of pages.
+    const knownSpells = FULL_LIST_CLASSES.includes(character.casterClass)
       ? []
       : character.knownSpellIds
           .map((id) => spellMap.get(id))

@@ -1,15 +1,11 @@
 import React, { useState } from "react";
-import { BookOpen, Plus, Sparkles, Search, CheckCircle2 } from "lucide-react";
+import { BookOpen, Plus, Sparkles, Search, CheckCircle2, BookmarkPlus } from "lucide-react";
 import { Character, Spell, FilterOptions } from "../types";
 import { SpellFilterBar } from "./SpellFilterBar";
 import { SpellCard } from "./SpellCard";
 import { CLERIC_DOMAINS } from "../data/domainsData";
-import { CASTER_CLASSES } from "../data/classesData";
-import {
-  filterSpellsList,
-  getAvailableSpells,
-  knowsEntireSpellList,
-} from "../utils/pf1eUtils";
+import { CASTER_CLASSES, FULL_LIST_CLASSES } from "../data/classesData";
+import { filterSpellsList, getActiveClassEntry } from "../utils/pf1eUtils";
 
 interface SpellbookViewProps {
   character: Character;
@@ -30,9 +26,13 @@ export const SpellbookView: React.FC<SpellbookViewProps> = ({
   onNavigateToDatabase,
   onUpdateCharacter,
 }) => {
+  const activeClass = getActiveClassEntry(character);
+  const activeClassDef = CASTER_CLASSES[activeClass.casterClass] || CASTER_CLASSES.wizard;
+  const isFullListClass = FULL_LIST_CLASSES.includes(activeClass.casterClass);
+
   const [filter, setFilter] = useState<FilterOptions>({
     search: "",
-    classFilter: character.casterClass,
+    classFilter: activeClass.casterClass,
     levelFilter: "all",
     schoolFilter: "all",
     componentFilter: [],
@@ -43,16 +43,36 @@ export const SpellbookView: React.FC<SpellbookViewProps> = ({
 
   const [inscribedBannerMsg, setInscribedBannerMsg] = useState<string | null>(null);
 
-  const knownSpells = getAvailableSpells(character, allSpells);
-  const fullListCaster = knowsEntireSpellList(character);
-  const classDef = CASTER_CLASSES[character.casterClass];
+  const knownSpells = allSpells.filter((s) => character.knownSpellIds.includes(s.id));
 
   const filteredSpells = filterSpellsList(knownSpells, {
     ...filter,
     onlyCharacterKnown: false, // already filtered to knownSpells
   });
 
-  const isCleric = character.casterClass === "cleric";
+  const isCleric = activeClass.casterClass === "cleric";
+
+  // Inscribe ALL spells on current class spell list
+  const handleInscribeAllClassSpells = () => {
+    if (!onUpdateCharacter) return;
+    const targetClass = activeClass.casterClass;
+    const classSpells = allSpells.filter((s) => s.classes[targetClass] !== undefined);
+    const newIds = classSpells.map((s) => s.id);
+    const mergedKnown = Array.from(new Set([...character.knownSpellIds, ...newIds]));
+
+    const addedCount = mergedKnown.length - character.knownSpellIds.length;
+    const updatedChar: Character = {
+      ...character,
+      knownSpellIds: mergedKnown,
+    };
+    onUpdateCharacter(updatedChar);
+    setInscribedBannerMsg(
+      addedCount > 0
+        ? `Added ${addedCount} ${activeClassDef.name} spells to your grimoire!`
+        : `All ${activeClassDef.name} class list spells are already inscribed in your grimoire!`
+    );
+    setTimeout(() => setInscribedBannerMsg(null), 5000);
+  };
 
   // Auto-inscribe all granted domain spells into character grimoire
   const handleAutoInscribeDomainSpells = () => {
@@ -113,32 +133,27 @@ export const SpellbookView: React.FC<SpellbookViewProps> = ({
           </div>
           <div>
             <h2 className="font-serif font-bold text-xl text-[#e2d5c3] tracking-wide uppercase">
-              {fullListCaster
-                ? `${classDef.name} Spell List`
-                : `${character.name}'s Personal Grimoire`}
+              {character.name}&apos;s Personal Grimoire
             </h2>
             <p className="text-xs text-[#8c7a65] mt-0.5 font-serif italic">
-              {fullListCaster ? (
-                <>
-                  A {classDef.name.toLowerCase()} may prepare any spell on their list —{" "}
-                  <strong className="text-[#d4af37] font-mono">{knownSpells.length}</strong>{" "}
-                  are available, no need to learn them first.
-                </>
-              ) : (
-                <>
-                  Contains{" "}
-                  <strong className="text-[#d4af37] font-mono">
-                    {character.knownSpellIds.length}
-                  </strong>{" "}
-                  inscribed spells in spellbook / known list.
-                </>
-              )}
+              Contains <strong className="text-[#d4af37] font-mono">{character.knownSpellIds.length}</strong> inscribed spells in spellbook / known list.
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {isCleric && !fullListCaster && onUpdateCharacter && (
+          {onUpdateCharacter && (
+            <button
+              onClick={handleInscribeAllClassSpells}
+              className="flex items-center gap-2 bg-[#2d241c] hover:bg-[#d4af37] text-[#d4af37] hover:text-[#1a1614] font-serif font-bold text-xs uppercase tracking-wider px-3.5 py-2 rounded-sm border border-[#d4af37] transition shadow"
+              title={`Inscribe all Pathfinder 1e ${activeClassDef.name} class spells into your grimoire`}
+            >
+              <BookmarkPlus className="w-4 h-4 text-[#d4af37]" />
+              <span>Inscribe All {activeClassDef.name} Spells</span>
+            </button>
+          )}
+
+          {isCleric && onUpdateCharacter && (
             <button
               onClick={handleAutoInscribeDomainSpells}
               className="flex items-center gap-2 bg-[#1c1714] hover:bg-[#2d241c] text-[#d4af37] font-serif font-bold text-xs uppercase tracking-wider px-3.5 py-2 rounded-sm border border-[#d4af37]/60 transition shadow"
@@ -151,10 +166,10 @@ export const SpellbookView: React.FC<SpellbookViewProps> = ({
 
           <button
             onClick={onNavigateToDatabase}
-            className="flex items-center gap-2 bg-[#2d241c] hover:bg-[#d4af37] text-[#d4af37] hover:text-[#1a1614] font-serif font-bold text-xs uppercase tracking-widest px-4 py-2 rounded-sm border border-[#d4af37] shadow transition"
+            className="flex items-center gap-2 bg-[#1c1714] hover:bg-[#2d241c] text-[#d4c5b3] hover:text-[#e2d5c3] font-serif font-bold text-xs uppercase tracking-widest px-4 py-2 rounded-sm border border-[#3d2e24] transition"
           >
-            <Search className="w-4 h-4" />
-            <span>{fullListCaster ? "Browse Paizo Library" : "+ Find Spells in Paizo Library"}</span>
+            <Search className="w-4 h-4 text-[#d4af37]" />
+            <span>+ Find Spells in Library</span>
           </button>
         </div>
       </div>
@@ -174,12 +189,12 @@ export const SpellbookView: React.FC<SpellbookViewProps> = ({
         <div className="bg-[#14100e] border border-[#3d2e24] rounded-lg p-12 text-center space-y-4">
           <BookOpen className="w-12 h-12 text-[#8c7a65]/40 mx-auto" />
           <h3 className="font-serif font-bold text-lg text-[#e2d5c3] uppercase tracking-wide">
-            {fullListCaster ? "No Spells Match" : "No Spells Found in Grimoire"}
+            No Spells Found in Grimoire
           </h3>
           <p className="text-xs text-[#8c7a65] max-w-md mx-auto font-serif italic">
-            {fullListCaster || character.knownSpellIds.length > 0
-              ? "No spells matched your current filter criteria."
-              : "Your character doesn't have any spells saved in their spellbook yet."}
+            {character.knownSpellIds.length === 0
+              ? "Your character doesn't have any spells saved in their spellbook yet."
+              : "No spells matched your current filter criteria."}
           </p>
           <button
             onClick={onNavigateToDatabase}
@@ -197,7 +212,6 @@ export const SpellbookView: React.FC<SpellbookViewProps> = ({
               spell={spell}
               character={character}
               isInSpellbook={true}
-              canToggleSpellbook={!fullListCaster}
               onToggleSpellbook={onToggleSpellbook}
               onOpenDetails={onOpenSpellDetails}
               onPrepareSpell={onPrepareSpell}
