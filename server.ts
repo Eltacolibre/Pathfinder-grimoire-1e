@@ -3,6 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import { GEMINI_MODEL, buildAdvisorPrompt } from "./src/utils/geminiPrompt";
 
 dotenv.config();
 
@@ -32,16 +33,9 @@ app.post("/api/gemini/spell-assistant", async (req, res) => {
       });
     }
 
-    const systemInstruction = `You are a Pathfinder 1st Edition (PF1e) Rules Expert, Archmage, and Spellbook Consultant.
-You possess deep knowledge of Paizo Pathfinder 1e spell mechanics, class spell lists (Wizard, Cleric, Druid, Sorcerer, Bard, Witch, Magus, Paladin, Ranger, Alchemist, Inquisitor, Oracle, Psychic, etc.), spell preparation rules, metamagic feats, saving throw DCs, and rules interactions.
-
-Always respond accurately to Pathfinder 1st Edition rules. If asked to evaluate or summarize a spell, output clear Paizo-formatted stat blocks or strategic recommendations. If asked to generate a custom spell or analyze a rule, maintain strict PF1e balance and official wording style.`;
-
-    const fullPrompt = `${systemInstruction}\n\n${context ? `Character / Context:\n${JSON.stringify(context)}\n\n` : ""}User Query: ${prompt}`;
-
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: fullPrompt,
+      model: GEMINI_MODEL,
+      contents: buildAdvisorPrompt(prompt, context),
     });
 
     res.json({ text: response.text || "No response generated." });

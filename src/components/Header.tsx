@@ -11,6 +11,7 @@ import {
   Trash2,
   Settings,
   Dices,
+  Coffee,
 } from "lucide-react";
 import { Character } from "../types";
 import { CASTER_CLASSES } from "../data/classesData";
@@ -165,6 +166,17 @@ export const Header: React.FC<HeaderProps> = ({
             <Bot className="w-3.5 h-3.5 text-[#d4af37]" />
             <span>AI Lore Advisor</span>
           </button>
+
+          <a
+            href="https://ko-fi.com/bagquest"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-[#3d2e24] bg-[#2d241c] text-[#d4c5b3] hover:text-[#d4af37] hover:border-[#d4af37]/60 text-xs font-bold uppercase tracking-wider transition"
+            title="This grimoire is free — tip the scribe on Ko-fi"
+          >
+            <Coffee className="w-3.5 h-3.5 text-[#d4af37]" />
+            <span className="hidden sm:inline">Tip Jar</span>
+          </a>
         </div>
       </div>
 

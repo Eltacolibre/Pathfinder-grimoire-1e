@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Coffee } from "lucide-react";
 import { Header } from "./components/Header";
 import { DailyPreparationView } from "./components/DailyPreparationView";
 import { SpellbookView } from "./components/SpellbookView";
@@ -337,6 +338,65 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-[#3d2e24] bg-[#14100e] text-[#8c7a65] mt-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+          <p className="font-serif italic text-center sm:text-left">
+            Free to use, no account, everything saved in your browser. If it saved you time at
+            the table, a coffee keeps the candles lit.
+          </p>
+
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <a
+              href="https://ko-fi.com/bagquest"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 border border-[#d4af37] bg-[#2d241c] text-[#d4af37] font-bold uppercase tracking-widest hover:bg-[#d4af37] hover:text-[#1a1614] transition-colors shadow-sm whitespace-nowrap"
+            >
+              <Coffee className="w-4 h-4" />
+              <span>Support on Ko-fi</span>
+            </a>
+
+            <div className="flex items-center gap-3 font-serif">
+              <a
+                href="https://bagquest.itch.io"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-[#d4af37] transition"
+              >
+                Bagquest
+              </a>
+              <span className="text-[#3d2e24]">•</span>
+              <a
+                href="https://eltacolibre.github.io/mapforge/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-[#d4af37] transition"
+              >
+                MapForge
+              </a>
+              <span className="text-[#3d2e24]">•</span>
+              <a
+                href="https://eltacolibre.github.io/dice-tray/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-[#d4af37] transition"
+              >
+                Dice Tray
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-[#3d2e24] px-4 py-3">
+          <p className="max-w-7xl mx-auto text-[10px] text-[#6b5c4c] font-serif italic text-center sm:text-left">
+            Unofficial fan tool. Pathfinder and associated marks are trademarks of Paizo Inc.
+            Spell text used under the Open Game License; this project is not affiliated with or
+            endorsed by Paizo.
+          </p>
+        </div>
+      </footer>
 
       {/* Modals */}
       <CharacterModal
